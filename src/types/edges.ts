@@ -1,7 +1,7 @@
 import type { Edge } from '@xyflow/react';
 
 export type EdgeProtocol = 'http' | 'grpc' | 'websocket' | 'tcp' | 'amqp' | 'generic';
-export type EdgeColor = 'default' | 'red' | 'green' | 'blue' | 'orange' | 'gray';
+export type EdgeColor = 'default' | 'red' | 'green' | 'blue' | 'orange' | 'gray' | 'custom';
 export type EdgeStrokeWidth = 'thin' | 'medium' | 'thick';
 export type EdgeStrokeStyle = 'solid' | 'dashed' | 'dotted';
 export type EdgeRouting = 'step' | 'bezier' | 'smoothstep';
@@ -10,6 +10,7 @@ export interface FlowEdgeData extends Record<string, unknown> {
   protocol?: EdgeProtocol;
   label?: string;
   color?: EdgeColor;
+  customColor?: string;
   strokeWidth?: EdgeStrokeWidth;
   strokeStyle?: EdgeStrokeStyle;
   routing?: EdgeRouting;
@@ -34,4 +35,5 @@ export const EDGE_COLOR_VALUES: Record<EdgeColor, string> = {
   blue:    '#60a5fa',
   orange:  '#fb923c',
   gray:    '#9ca3af',
+  custom:  '#ffffff',
 };

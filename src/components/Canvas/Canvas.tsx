@@ -1,17 +1,45 @@
+import { useState } from 'react';
 import {
   ReactFlow,
   Background,
   BackgroundVariant,
   Controls,
+  ControlButton,
   MiniMap,
   ConnectionMode,
+  SelectionMode,
+  useStore,
 } from '@xyflow/react';
+import { BsBoundingBoxCircles } from 'react-icons/bs';
+import { MdPanTool } from 'react-icons/md';
 import { useFlowStore } from '../../store/useFlowStore';
 import { nodeTypes } from '../../nodes';
 import { edgeTypes } from '../../edges';
 import { useDrop } from '../../hooks/useDrop';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useThemeStore } from '../../store/useThemeStore';
+import { EdgePanel } from '../../edges/EdgePanel';
+import type { FlowEdgeData } from '../../types/edges';
+
+// Fixed-position inspector panel shown when an edge is selected
+function SelectedEdgePanel() {
+  const selectedEdge = useStore((s) => s.edges.find((e) => e.selected));
+  if (!selectedEdge) return null;
+  return (
+    <div
+      className="nodrag nopan"
+      style={{
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        zIndex: 1000,
+        pointerEvents: 'all',
+      }}
+    >
+      <EdgePanel id={selectedEdge.id} data={(selectedEdge.data ?? {}) as Partial<FlowEdgeData>} />
+    </div>
+  );
+}
 
 // SVG doesn't resolve CSS custom properties, so grid colors must be real values
 const GRID_COLORS: Record<string, { fine: string; major: string }> = {
@@ -25,6 +53,7 @@ export function Canvas() {
   const { onDrop, onDragOver } = useDrop();
   const theme = useThemeStore((s) => s.theme);
   const gridColors = GRID_COLORS[theme];
+  const [isSelecting, setIsSelecting] = useState(false);
   useKeyboardShortcuts();
 
   return (
@@ -49,12 +78,24 @@ export function Canvas() {
         deleteKeyCode={null}
         snapToGrid={true}
         snapGrid={[20, 20]}
+        selectionOnDrag={isSelecting}
+        panOnDrag={isSelecting ? [2] : true}
+        selectionMode={SelectionMode.Partial}
       >
         {showGrid && <>
           <Background variant={BackgroundVariant.Lines} gap={20} lineWidth={0.4} color={gridColors.fine} />
           <Background variant={BackgroundVariant.Lines} gap={100} lineWidth={1} color={gridColors.major} />
         </>}
-        <Controls showInteractive={false} />
+        <SelectedEdgePanel />
+        <Controls showInteractive={false}>
+          <ControlButton
+            onClick={() => setIsSelecting((s) => !s)}
+            title={isSelecting ? 'Switch to pan mode' : 'Switch to selection mode'}
+            style={{ color: isSelecting ? 'var(--color-selection-ring)' : undefined }}
+          >
+            {isSelecting ? <BsBoundingBoxCircles size={13} /> : <MdPanTool size={13} />}
+          </ControlButton>
+        </Controls>
         <MiniMap
           nodeColor="var(--color-minimap-node)"
           maskColor="var(--color-minimap-bg)"

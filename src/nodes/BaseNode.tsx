@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { Handle, Position, NodeResizer, type NodeProps } from '@xyflow/react';
-import type { AppNode, BaseNodeData, FontFamily } from '../types/nodes';
+import { Handle, Position, NodeResizer, useReactFlow, type NodeProps, type ResizeDragEvent, type ResizeParams } from '@xyflow/react';
+import type { AppNode, BaseNodeData, FontFamily, TextAlign } from '../types/nodes';
 import { useFlowStore } from '../store/useFlowStore';
 import { useThemeStore } from '../store/useThemeStore';
 
@@ -51,8 +51,12 @@ export interface BaseNodeProps extends NodeProps<AppNode> {
   bodyStyle?: React.CSSProperties;
 }
 
+const GRID = 20;
+const snap = (v: number) => Math.round(v / GRID) * GRID;
+
 export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: BaseNodeProps) {
   const d = data as BaseNodeData;
+  const { updateNode } = useReactFlow();
 
   const [editingLabel, setEditingLabel] = useState(false);
   const [draftLabel,   setDraftLabel]   = useState('');
@@ -67,6 +71,7 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
 
   const fontSize   = d.fontSize   ?? 11;
   const fontFamily = d.fontFamily ?? 'sans';
+  const textAlign  = d.textAlign  ?? 'left';
   const text           = d.text;
   const showTextSection = text !== undefined;
 
@@ -117,6 +122,11 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
     [id, updateNodeData]
   );
 
+  const applyTextAlign = useCallback(
+    (ta: TextAlign) => updateNodeData(id, { textAlign: ta }),
+    [id, updateNodeData]
+  );
+
   const changeFontSize = useCallback(
     (delta: number) => {
       let idx = FONT_SIZES.indexOf(fontSize);
@@ -161,6 +171,13 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
         isVisible={selected}
         minWidth={60}
         minHeight={40}
+        onResizeEnd={(_: ResizeDragEvent, p: ResizeParams) => {
+          updateNode(id, {
+            position: { x: snap(p.x), y: snap(p.y) },
+            width:  snap(p.width),
+            height: snap(p.height),
+          });
+        }}
         lineStyle={{ stroke: 'var(--color-selection-ring)', strokeWidth: 1, strokeDasharray: '3 2', opacity: 0.6 }}
         handleStyle={{
           background: 'var(--color-canvas-bg)',
@@ -216,6 +233,21 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
           </span>
           <button onMouseDown={(e) => e.stopPropagation()} onClick={() => changeFontSize(+1)}
             title="Larger" style={{ ...toolBtn(), padding: '2px 4px' }}>A+</button>
+
+          <div style={DIVIDER} />
+
+          {/* Text alignment */}
+          {(['left', 'center', 'right'] as TextAlign[]).map((ta) => (
+            <button
+              key={ta}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => applyTextAlign(ta)}
+              title={`Align ${ta}`}
+              style={{ ...toolBtn(textAlign === ta), padding: '2px 5px', fontSize: '11px' }}
+            >
+              {ta === 'left' ? '⬅' : ta === 'center' ? '↔' : '➡'}
+            </button>
+          ))}
 
           <div style={DIVIDER} />
 
@@ -292,6 +324,7 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              textAlign,
             }}>
               {d.label}
             </span>
@@ -338,6 +371,7 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
                   fontFamily: FONT_FAMILIES[fontFamily],
                   lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
                   opacity: text ? 1 : 0.4, cursor: 'text',
+                  textAlign,
                 }}
               >
                 {text || 'Click to add text…'}

@@ -3,6 +3,7 @@ import { useFlowStore } from '../store/useFlowStore';
 
 export function useKeyboardShortcuts() {
   const removeSelectedElements = useFlowStore((s) => s.removeSelectedElements);
+  const selectAll              = useFlowStore((s) => s.selectAll);
   const copySelected           = useFlowStore((s) => s.copySelected);
   const pasteClipboard         = useFlowStore((s) => s.pasteClipboard);
   const saveToStorage          = useFlowStore((s) => s.saveToStorage);
@@ -15,6 +16,7 @@ export function useKeyboardShortcuts() {
 
       const mod = e.metaKey || e.ctrlKey;
 
+      if (mod && e.key === 'a') { e.preventDefault(); selectAll();        return; }
       if (mod && e.key === 's') { e.preventDefault(); saveToStorage();   return; }
       if (mod && e.key === 'o') { e.preventDefault(); loadFromStorage();  return; }
       if (mod && e.key === 'c') { e.preventDefault(); copySelected();     return; }
@@ -28,5 +30,5 @@ export function useKeyboardShortcuts() {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [removeSelectedElements, copySelected, pasteClipboard, saveToStorage, loadFromStorage]);
+  }, [removeSelectedElements, selectAll, copySelected, pasteClipboard, saveToStorage, loadFromStorage]);
 }

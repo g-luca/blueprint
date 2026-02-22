@@ -27,6 +27,7 @@ interface FlowState {
   updateNodeLabel: (id: string, label: string) => void;
   updateNodeData: (id: string, patch: Partial<BaseNodeData>) => void;
   updateEdgeData: (id: string, patch: Partial<FlowEdgeData>) => void;
+  selectAll: () => void;
   removeSelectedElements: () => void;
   copySelected: () => void;
   pasteClipboard: () => void;
@@ -35,9 +36,11 @@ interface FlowState {
   clearCanvas: () => void;
 }
 
+const _saved = loadFromLocalStorage();
+
 export const useFlowStore = create<FlowState>((set, get) => ({
-  nodes: [],
-  edges: [],
+  nodes: _saved?.nodes ?? [],
+  edges: _saved?.edges ?? [],
   clipboard: null,
   showGrid: true,
   toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
@@ -85,6 +88,12 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       edges: get().edges.map((e) =>
         e.id === id ? { ...e, data: { ...e.data, ...patch } } : e
       ),
+    }),
+
+  selectAll: () =>
+    set({
+      nodes: get().nodes.map((n) => ({ ...n, selected: true })),
+      edges: get().edges.map((e) => ({ ...e, selected: true })),
     }),
 
   removeSelectedElements: () =>

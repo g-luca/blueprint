@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { HexColorPicker } from 'react-colorful';
 import { useFlowStore } from '../store/useFlowStore';
 import type {
   FlowEdgeData, EdgeColor, EdgeStrokeWidth, EdgeStrokeStyle, EdgeRouting,
@@ -114,17 +116,19 @@ interface Props {
 
 export function EdgePanel({ id, data }: Props) {
   const updateEdgeData = useFlowStore((s) => s.updateEdgeData);
+  const [showPicker, setShowPicker] = useState(false);
 
   const color       = (data.color       ?? 'default')  as EdgeColor;
   const strokeWidth = (data.strokeWidth ?? 'medium')   as EdgeStrokeWidth;
   const strokeStyle = (data.strokeStyle ?? 'dashed')   as EdgeStrokeStyle;
   const routing     = (data.routing     ?? 'step')     as EdgeRouting;
   const arrowhead   = data.arrowhead ?? true;
+  const customColor = data.customColor ?? '#888888';
 
   const upd = (patch: Partial<FlowEdgeData>) => updateEdgeData(id, patch);
 
-  const colors: { key: EdgeColor; value: string }[] = [
-    { key: 'default', value: EDGE_COLOR_VALUES.default },
+  const presetColors: { key: EdgeColor; value: string }[] = [
+    { key: 'default', value: 'var(--color-edge-stroke)' },
     { key: 'red',     value: EDGE_COLOR_VALUES.red },
     { key: 'green',   value: EDGE_COLOR_VALUES.green },
     { key: 'blue',    value: EDGE_COLOR_VALUES.blue },
@@ -141,19 +145,19 @@ export function EdgePanel({ id, data }: Props) {
         background: 'var(--color-toolbar-bg)',
         border: '1px solid var(--color-node-border)',
         borderRadius: 10, padding: '10px 12px',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
-        minWidth: 212,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+        width: 240,
         userSelect: 'none',
       }}
     >
       {/* Stroke color */}
       <Section label="Stroke">
-        {colors.map(({ key, value }) => (
+        {presetColors.map(({ key, value }) => (
           <button
             key={key}
             title={key}
             onMouseDown={(e) => e.stopPropagation()}
-            onClick={() => upd({ color: key })}
+            onClick={() => { upd({ color: key }); setShowPicker(false); }}
             style={{
               ...btnBase,
               background: value,
@@ -162,6 +166,31 @@ export function EdgePanel({ id, data }: Props) {
             }}
           />
         ))}
+        {/* Custom color swatch */}
+        <div style={{ position: 'relative' }}>
+          <button
+            title="Custom color"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => { setShowPicker((v) => !v); upd({ color: 'custom' }); }}
+            style={{
+              ...btnBase,
+              background: color === 'custom' ? customColor : 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)',
+              outline: color === 'custom' ? '2px solid var(--color-selection-ring)' : '2px solid transparent',
+              outlineOffset: 1,
+            }}
+          />
+          {showPicker && (
+            <div
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 9999 }}
+            >
+              <HexColorPicker
+                color={customColor}
+                onChange={(hex) => upd({ color: 'custom', customColor: hex })}
+              />
+            </div>
+          )}
+        </div>
       </Section>
 
       {/* Stroke width */}

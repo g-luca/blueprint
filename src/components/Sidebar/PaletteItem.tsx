@@ -1,14 +1,20 @@
-import { MdPerson, MdPublic, MdWifi, MdHub, MdSecurity, MdStorage, MdRouter, MdTitle, MdSquare, MdCircle, MdChangeHistory } from 'react-icons/md';
+import { MdOpenInBrowser, MdPhoneIphone, MdAndroid, MdTv, MdWatch, MdVrpano, MdPublic, MdWifi, MdHub, MdSecurity, MdStorage, MdRouter, MdTitle } from 'react-icons/md';
+import { BsSquare, BsCircle, BsTriangle } from 'react-icons/bs';
 import { SiCloudflare, SiRedis, SiAmazons3, SiApachekafka, SiDocker, SiPostgresql } from 'react-icons/si';
 import type { PaletteItem as PaletteItemType } from '../../types/palette';
 import type { NodeType } from '../../types/nodes';
 
 const ICONS: Record<NodeType, React.ReactNode> = {
   text:         <MdTitle size={16} />,
-  rectangle:    <MdSquare size={16} />,
-  circle:       <MdCircle size={16} />,
-  triangle:     <MdChangeHistory size={16} />,
-  client:       <MdPerson size={16} />,
+  rectangle:    <BsSquare size={13} />,
+  circle:       <BsCircle size={13} />,
+  triangle:     <BsTriangle size={13} />,
+  browser:      <MdOpenInBrowser size={16} />,
+  ios:          <MdPhoneIphone size={16} />,
+  android:      <MdAndroid size={16} />,
+  tv:           <MdTv size={16} />,
+  watch:        <MdWatch size={16} />,
+  vr:           <MdVrpano size={16} />,
   dns:          <MdPublic size={16} />,
   cloudflare:   <SiCloudflare size={14} />,
   cdn:          <MdWifi size={16} />,

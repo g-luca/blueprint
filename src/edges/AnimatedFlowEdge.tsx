@@ -1,14 +1,12 @@
 import {
   getBezierPath,
   getSmoothStepPath,
-  EdgeLabelRenderer,
   Position,
   type EdgeProps,
 } from '@xyflow/react';
 import type { AppEdge, FlowEdgeData } from '../types/edges';
 import { EDGE_COLOR_VALUES } from '../types/edges';
 import { useThemeStore } from '../store/useThemeStore';
-import { EdgePanel } from './EdgePanel';
 
 // ─── Arrowhead ────────────────────────────────────────────────────────────────
 
@@ -54,10 +52,14 @@ export function AnimatedFlowEdge({
   const showArrow   = edgeData.arrowhead   ?? true;
 
   // Resolved values
-  const strokeColor = theme === 'blueprint'
-    ? 'var(--color-edge-stroke)'
-    : EDGE_COLOR_VALUES[colorKey];
-  const dotColor = theme === 'blueprint'
+  const resolvedColor =
+    colorKey === 'custom' && edgeData.customColor
+      ? edgeData.customColor
+      : (theme === 'blueprint' && colorKey === 'default')
+        ? 'var(--color-edge-stroke)'
+        : EDGE_COLOR_VALUES[colorKey];
+  const strokeColor = resolvedColor;
+  const dotColor = (theme === 'blueprint' && colorKey === 'default')
     ? 'var(--color-edge-dot)'
     : strokeColor;
   const strokeWidth   = STROKE_WIDTH[widthKey];
@@ -109,22 +111,6 @@ export function AnimatedFlowEdge({
         </circle>
       ))}
 
-      {/* Options panel — floats above the edge midpoint when selected */}
-      {selected && (
-        <EdgeLabelRenderer>
-          <div
-            className="nodrag nopan"
-            style={{
-              position: 'absolute',
-              transform: `translate(-50%, calc(-100% - 14px)) translate(${labelX}px,${labelY}px)`,
-              pointerEvents: 'all',
-              zIndex: 1000,
-            }}
-          >
-            <EdgePanel id={id} data={edgeData} />
-          </div>
-        </EdgeLabelRenderer>
-      )}
     </>
   );
 }

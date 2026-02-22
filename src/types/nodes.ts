@@ -5,7 +5,12 @@ export type NodeType =
   | 'rectangle'
   | 'circle'
   | 'triangle'
-  | 'client'
+  | 'browser'
+  | 'ios'
+  | 'android'
+  | 'tv'
+  | 'watch'
+  | 'vr'
   | 'dns'
   | 'cloudflare'
   | 'cdn'
@@ -20,12 +25,14 @@ export type NodeType =
   | 'messagequeue';
 
 export type FontFamily = 'sans' | 'serif' | 'mono';
+export type TextAlign = 'left' | 'center' | 'right';
 
 export interface BaseNodeData {
   label: string;
   text?: string;
   fontSize?: number;
   fontFamily?: FontFamily;
+  textAlign?: TextAlign;
   [key: string]: unknown;
 }
 

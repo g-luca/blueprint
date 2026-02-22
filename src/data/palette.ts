@@ -12,10 +12,21 @@ export const PALETTE_CATEGORIES: PaletteCategory[] = [
     ],
   },
   {
+    id: 'clients',
+    label: 'Clients',
+    items: [
+      { type: 'browser',  label: 'Browser',  description: 'Web browser' },
+      { type: 'ios',      label: 'iOS',      description: 'iPhone / iPad app' },
+      { type: 'android',  label: 'Android',  description: 'Android app' },
+      { type: 'tv',       label: 'Smart TV', description: 'TV / streaming app' },
+      { type: 'watch',    label: 'Watch',    description: 'Smartwatch app' },
+      { type: 'vr',       label: 'VR / AR',  description: 'VR or AR headset' },
+    ],
+  },
+  {
     id: 'network',
     label: 'Network & Ingress',
     items: [
-      { type: 'client',       label: 'Client / Browser', description: 'End user or browser' },
       { type: 'dns',          label: 'DNS',              description: 'Domain Name System' },
       { type: 'cloudflare',   label: 'Cloudflare',       description: 'CDN & DDoS protection' },
       { type: 'cdn',          label: 'CDN',              description: 'Content Delivery Network' },

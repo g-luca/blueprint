@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useFlowStore } from '../../store/useFlowStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useExport } from '../../hooks/useExport';
@@ -23,7 +23,7 @@ function Dropdown({ items, onClose }: { items: MenuItem[]; onClose: () => void }
       onMouseDown={(e) => e.stopPropagation()}
       style={{
         position: 'absolute',
-        top: 'calc(100% + 4px)',
+        top: '100%',
         left: 0,
         minWidth: 210,
         background: 'var(--color-toolbar-bg)',
@@ -101,23 +101,21 @@ function Dropdown({ items, onClose }: { items: MenuItem[]; onClose: () => void }
 
 // ─── Menu trigger ─────────────────────────────────────────────────────────────
 
-function Menu({ label, items }: { label: string; items: MenuItem[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (e: MouseEvent) => {
-      if (!ref.current?.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
+function Menu({ label, items, openMenu, setOpenMenu }: {
+  label: string;
+  items: MenuItem[];
+  openMenu: string | null;
+  setOpenMenu: (v: string | null) => void;
+}) {
+  const open = openMenu === label;
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div
+      style={{ position: 'relative', height: '100%', display: 'flex', alignItems: 'center' }}
+      onMouseEnter={() => setOpenMenu(label)}
+      onMouseLeave={() => setOpenMenu(null)}
+    >
       <button
-        onClick={() => setOpen((o) => !o)}
         style={{
           height: 28,
           padding: '0 8px',
@@ -129,16 +127,10 @@ function Menu({ label, items }: { label: string; items: MenuItem[] }) {
           color: 'var(--color-toolbar-text)',
           fontFamily: 'inherit',
         }}
-        onMouseEnter={(e) => {
-          if (!open) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-sidebar-hover)';
-        }}
-        onMouseLeave={(e) => {
-          if (!open) (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-        }}
       >
         {label}
       </button>
-      {open && <Dropdown items={items} onClose={() => setOpen(false)} />}
+      {open && <Dropdown items={items} onClose={() => setOpenMenu(null)} />}
     </div>
   );
 }
@@ -155,6 +147,7 @@ export function Toolbar() {
   const { saveToStorage, loadFromStorage, clearCanvas, showGrid, toggleGrid } = useFlowStore();
   const { theme, setTheme } = useThemeStore();
   const { exportPng } = useExport();
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const handleClear = useCallback(() => {
     if (confirm('Clear the canvas? This cannot be undone.')) clearCanvas();
@@ -206,8 +199,8 @@ export function Toolbar() {
 
       <div style={{ width: 1, height: 14, background: 'var(--color-node-border)', opacity: 0.2, marginRight: 4 }} />
 
-      <Menu label="File"   items={fileItems} />
-      <Menu label="Window" items={windowItems} />
+      <Menu label="File"   items={fileItems}   openMenu={openMenu} setOpenMenu={setOpenMenu} />
+      <Menu label="Window" items={windowItems} openMenu={openMenu} setOpenMenu={setOpenMenu} />
     </header>
   );
 }

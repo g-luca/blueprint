@@ -2,7 +2,12 @@ import { TextNode } from './TextNode';
 import { RectangleNode } from './RectangleNode';
 import { CircleNode } from './CircleNode';
 import { TriangleNode } from './TriangleNode';
-import { ClientNode } from './ClientNode';
+import { BrowserNode } from './ClientNode';
+import { IosNode } from './IosNode';
+import { AndroidNode } from './AndroidNode';
+import { TvNode } from './TvNode';
+import { WatchNode } from './WatchNode';
+import { VrNode } from './VrNode';
 import { DnsNode } from './DnsNode';
 import { CloudflareNode } from './CloudflareNode';
 import { CdnNode } from './CdnNode';
@@ -22,7 +27,12 @@ export const nodeTypes = {
   rectangle:    RectangleNode,
   circle:       CircleNode,
   triangle:     TriangleNode,
-  client:       ClientNode,
+  browser:      BrowserNode,
+  ios:          IosNode,
+  android:      AndroidNode,
+  tv:           TvNode,
+  watch:        WatchNode,
+  vr:           VrNode,
   dns:          DnsNode,
   cloudflare:   CloudflareNode,
   cdn:          CdnNode,
