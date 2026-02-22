@@ -1,8 +1,8 @@
 import { type NodeProps } from '@xyflow/react';
-import { Shield } from 'lucide-react';
+import { MdSecurity } from 'react-icons/md';
 import { BaseNode } from './BaseNode';
 import type { AppNode } from '../types/nodes';
 
 export function FirewallNode(props: NodeProps<AppNode>) {
-  return <BaseNode {...props} icon={<Shield size={22} />} accentColor="#ef4444" />;
+  return <BaseNode {...props} icon={<MdSecurity size={16} />} accentColor="#ef4444" />;
 }

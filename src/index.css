@@ -1,26 +1,34 @@
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
 
+/* ── Global font ─────────────────────────────────────────────────────────────
+   Monospace stack for the UI chrome — gives the technical-manual feel.
+   Node labels override this with their own fontFamily setting.
+*/
+html, body {
+  font-family: ui-monospace, "JetBrains Mono", "Fira Code", Menlo, "Courier New", monospace;
+}
+
 /* CSS custom property placeholders — values injected by App.tsx */
 :root {
-  --color-canvas-bg: #1a3a8f;
-  --color-canvas-dot: rgba(255, 255, 255, 0.12);
-  --color-canvas-grid-fine: rgba(255, 255, 255, 0.07);
-  --color-canvas-grid-major: rgba(255, 255, 255, 0.18);
-  --color-node-bg: rgba(10, 40, 120, 0.85);
-  --color-node-border: rgba(255, 255, 255, 0.6);
-  --color-node-text: #e0eeff;
-  --color-node-glow: rgba(255, 255, 255, 0.15);
-  --color-edge-stroke: rgba(255, 255, 255, 0.8);
-  --color-edge-dot: #7dd3fc;
-  --color-sidebar-bg: #0f2560;
-  --color-sidebar-hover: rgba(255, 255, 255, 0.08);
-  --color-toolbar-bg: #0f2560;
-  --color-toolbar-text: #e0eeff;
-  --color-toolbar-btn-hover: rgba(255, 255, 255, 0.1);
-  --color-selection-ring: #7dd3fc;
-  --color-minimap-bg: rgba(15, 37, 96, 0.8);
-  --color-minimap-node: rgba(255, 255, 255, 0.4);
+  --color-canvas-bg:         #F3F4FF;
+  --color-canvas-dot:        rgba(59,79,255,0.08);
+  --color-canvas-grid-fine:  rgba(59,79,255,0.05);
+  --color-canvas-grid-major: rgba(59,79,255,0.13);
+  --color-node-bg:           #FFFFFF;
+  --color-node-border:       #3B4FFF;
+  --color-node-text:         #1A2480;
+  --color-node-glow:         transparent;
+  --color-edge-stroke:       #3B4FFF;
+  --color-edge-dot:          #7B8AFF;
+  --color-sidebar-bg:        #E8EAFF;
+  --color-sidebar-hover:     rgba(59,79,255,0.07);
+  --color-toolbar-bg:        #FFFFFF;
+  --color-toolbar-text:      #1A2480;
+  --color-toolbar-btn-hover: rgba(59,79,255,0.07);
+  --color-selection-ring:    #3B4FFF;
+  --color-minimap-bg:        rgba(232,234,255,0.97);
+  --color-minimap-node:      rgba(59,79,255,0.3);
 }
 
 html, body, #root {
@@ -44,14 +52,14 @@ html, body, #root {
 /* Handles */
 .react-flow__handle {
   background: var(--color-node-border) !important;
-  border: 1px solid var(--color-node-text) !important;
+  border: 1.5px solid var(--color-canvas-bg) !important;
   width: 8px !important;
   height: 8px !important;
   border-radius: 50% !important;
 }
 
 .react-flow__handle:hover {
-  background: var(--color-edge-dot) !important;
+  background: var(--color-selection-ring) !important;
 }
 
 /* Controls */
@@ -60,14 +68,14 @@ html, body, #root {
   border: 1px solid var(--color-node-border) !important;
   border-radius: 8px !important;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
 }
 
 .react-flow__controls-button {
   background: var(--color-toolbar-bg) !important;
   border-bottom: 1px solid var(--color-node-border) !important;
-  color: var(--color-node-text) !important;
-  fill: var(--color-node-text) !important;
+  color: var(--color-toolbar-text) !important;
+  fill: var(--color-toolbar-text) !important;
 }
 
 .react-flow__controls-button:hover {
@@ -75,7 +83,7 @@ html, body, #root {
 }
 
 .react-flow__controls-button svg {
-  fill: var(--color-node-text) !important;
+  fill: var(--color-node-border) !important;
 }
 
 /* MiniMap */
@@ -84,7 +92,7 @@ html, body, #root {
   border: 1px solid var(--color-node-border) !important;
   border-radius: 8px !important;
   overflow: hidden;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
 }
 
 .react-flow__node:focus {
@@ -94,10 +102,11 @@ html, body, #root {
 /* Attribution */
 .react-flow__attribution {
   background: transparent !important;
-  color: rgba(255,255,255,0.2) !important;
+  color: var(--color-node-border) !important;
+  opacity: 0.3;
   font-size: 9px;
 }
 
 .react-flow__attribution a {
-  color: rgba(255,255,255,0.25) !important;
+  color: var(--color-node-border) !important;
 }

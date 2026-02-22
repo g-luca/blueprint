@@ -1,8 +1,8 @@
 import { type NodeProps } from '@xyflow/react';
-import { CloudflareIcon } from '../icons';
+import { SiCloudflare } from 'react-icons/si';
 import { BaseNode } from './BaseNode';
 import type { AppNode } from '../types/nodes';
 
 export function CloudflareNode(props: NodeProps<AppNode>) {
-  return <BaseNode {...props} icon={<CloudflareIcon size={22} />} accentColor="#f97316" />;
+  return <BaseNode {...props} icon={<SiCloudflare size={15} />} accentColor="#f97316" />;
 }

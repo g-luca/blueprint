@@ -1,8 +1,8 @@
 import { type NodeProps } from '@xyflow/react';
-import { RedisIcon } from '../icons';
+import { SiRedis } from 'react-icons/si';
 import { BaseNode } from './BaseNode';
 import type { AppNode } from '../types/nodes';
 
 export function CacheNode(props: NodeProps<AppNode>) {
-  return <BaseNode {...props} icon={<RedisIcon size={22} />} accentColor="#fb7185" />;
+  return <BaseNode {...props} icon={<SiRedis size={15} />} accentColor="#dc382d" />;
 }

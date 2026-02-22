@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { MdExpandMore, MdChevronRight } from 'react-icons/md';
 import type { PaletteCategory as PaletteCategoryType } from '../../types/palette';
 import { PaletteItem } from './PaletteItem';
 
@@ -32,7 +32,7 @@ export function PaletteCategory({ category, defaultOpen = true }: Props) {
           opacity: 0.6,
         }}
       >
-        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+        {open ? <MdExpandMore size={14} /> : <MdChevronRight size={14} />}
         {category.label}
       </button>
       {open && (

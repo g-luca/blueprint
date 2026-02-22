@@ -13,10 +13,18 @@ import { useDrop } from '../../hooks/useDrop';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useThemeStore } from '../../store/useThemeStore';
 
+// SVG doesn't resolve CSS custom properties, so grid colors must be real values
+const GRID_COLORS: Record<string, { fine: string; major: string }> = {
+  blueprint: { fine: 'rgba(59,79,255,0.18)',   major: 'rgba(59,79,255,0.35)' },
+  dark:      { fine: 'rgba(255,255,255,0.10)', major: 'rgba(255,255,255,0.18)' },
+  light:     { fine: 'rgba(0,0,0,0.10)',       major: 'rgba(0,0,0,0.18)'     },
+};
+
 export function Canvas() {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect } = useFlowStore();
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, showGrid } = useFlowStore();
   const { onDrop, onDragOver } = useDrop();
   const theme = useThemeStore((s) => s.theme);
+  const gridColors = GRID_COLORS[theme];
   useKeyboardShortcuts();
 
   return (
@@ -42,20 +50,10 @@ export function Canvas() {
         snapToGrid={true}
         snapGrid={[20, 20]}
       >
-        {/* Fine subdivision — dots at every 20px intersection (matches snap grid) */}
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={20}
-          size={1}
-          color="var(--color-canvas-grid-fine)"
-        />
-        {/* Major grid — lines every 100px (every 5 cells), rendered on top of dots */}
-        <Background
-          variant={BackgroundVariant.Lines}
-          gap={100}
-          color="var(--color-canvas-grid-major)"
-          lineWidth={1}
-        />
+        {showGrid && <>
+          <Background variant={BackgroundVariant.Lines} gap={20} lineWidth={0.4} color={gridColors.fine} />
+          <Background variant={BackgroundVariant.Lines} gap={100} lineWidth={1} color={gridColors.major} />
+        </>}
         <Controls showInteractive={false} />
         <MiniMap
           nodeColor="var(--color-minimap-node)"

@@ -1,14 +1,149 @@
-import { Save, FolderOpen, Trash2, Download, Sun, Moon, PenLine } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useFlowStore } from '../../store/useFlowStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useExport } from '../../hooks/useExport';
 import type { ThemeName } from '../../themes';
 
-const THEME_ICONS: Record<ThemeName, React.ReactNode> = {
-  blueprint: <PenLine size={15} />,
-  dark: <Moon size={15} />,
-  light: <Sun size={15} />,
-};
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface MenuItem {
+  label?: string;
+  shortcut?: string;
+  action?: () => void;
+  checked?: boolean;
+  danger?: boolean;
+  separator?: true;
+}
+
+// ─── Dropdown ─────────────────────────────────────────────────────────────────
+
+function Dropdown({ items, onClose }: { items: MenuItem[]; onClose: () => void }) {
+  return (
+    <div
+      onMouseDown={(e) => e.stopPropagation()}
+      style={{
+        position: 'absolute',
+        top: 'calc(100% + 4px)',
+        left: 0,
+        minWidth: 210,
+        background: 'var(--color-toolbar-bg)',
+        border: '1px solid var(--color-node-border)',
+        borderRadius: 8,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+        padding: '4px 0',
+        zIndex: 9999,
+      }}
+    >
+      {items.map((item, i) => {
+        if (item.separator) {
+          return (
+            <div key={i} style={{
+              height: 1,
+              background: 'var(--color-node-border)',
+              opacity: 0.25,
+              margin: '3px 0',
+            }} />
+          );
+        }
+        return (
+          <button
+            key={i}
+            disabled={!item.action}
+            onClick={() => { item.action?.(); onClose(); }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              width: '100%',
+              padding: '0 12px 0 30px',
+              height: 26,
+              background: 'transparent',
+              border: 'none',
+              cursor: item.action ? 'pointer' : 'default',
+              fontSize: 12,
+              color: item.danger ? '#f87171' : 'var(--color-toolbar-text)',
+              textAlign: 'left',
+              position: 'relative',
+              gap: 0,
+            }}
+            onMouseEnter={(e) => {
+              if (!item.action) return;
+              const el = e.currentTarget;
+              el.style.background = 'var(--color-selection-ring)';
+              el.style.color = '#fff';
+              el.style.borderRadius = '4px';
+            }}
+            onMouseLeave={(e) => {
+              const el = e.currentTarget;
+              el.style.background = 'transparent';
+              el.style.color = item.danger ? '#f87171' : 'var(--color-toolbar-text)';
+              el.style.borderRadius = '0';
+            }}
+          >
+            {/* Checkmark */}
+            {item.checked !== undefined && (
+              <span style={{
+                position: 'absolute', left: 10,
+                fontSize: 11, opacity: item.checked ? 1 : 0,
+              }}>✓</span>
+            )}
+            <span style={{ flex: 1 }}>{item.label}</span>
+            {item.shortcut && (
+              <span style={{ opacity: 0.45, fontSize: 11, marginLeft: 16 }}>
+                {item.shortcut}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Menu trigger ─────────────────────────────────────────────────────────────
+
+function Menu({ label, items }: { label: string; items: MenuItem[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [open]);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          height: 28,
+          padding: '0 8px',
+          background: open ? 'var(--color-sidebar-hover)' : 'transparent',
+          border: 'none',
+          borderRadius: 4,
+          cursor: 'pointer',
+          fontSize: 12,
+          color: 'var(--color-toolbar-text)',
+          fontFamily: 'inherit',
+        }}
+        onMouseEnter={(e) => {
+          if (!open) (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-sidebar-hover)';
+        }}
+        onMouseLeave={(e) => {
+          if (!open) (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
+        }}
+      >
+        {label}
+      </button>
+      {open && <Dropdown items={items} onClose={() => setOpen(false)} />}
+    </div>
+  );
+}
+
+// ─── Toolbar ──────────────────────────────────────────────────────────────────
 
 const THEME_LABELS: Record<ThemeName, string> = {
   blueprint: 'Blueprint',
@@ -16,117 +151,63 @@ const THEME_LABELS: Record<ThemeName, string> = {
   light: 'Light',
 };
 
-const NEXT_THEME: Record<ThemeName, ThemeName> = {
-  blueprint: 'dark',
-  dark: 'light',
-  light: 'blueprint',
-};
-
-interface ToolbarButtonProps {
-  onClick: () => void;
-  title: string;
-  children: React.ReactNode;
-  danger?: boolean;
-}
-
-function ToolbarButton({ onClick, title, children, danger }: ToolbarButtonProps) {
-  return (
-    <button
-      onClick={onClick}
-      title={title}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '5px',
-        padding: '5px 10px',
-        background: 'transparent',
-        border: '1px solid var(--color-node-border)',
-        borderRadius: '6px',
-        color: danger ? '#f87171' : 'var(--color-toolbar-text)',
-        fontSize: '12px',
-        fontWeight: 500,
-        cursor: 'pointer',
-        transition: 'background 0.15s',
-        whiteSpace: 'nowrap',
-      }}
-      onMouseEnter={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-toolbar-btn-hover)';
-      }}
-      onMouseLeave={(e) => {
-        (e.currentTarget as HTMLButtonElement).style.background = 'transparent';
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
 export function Toolbar() {
-  const { saveToStorage, loadFromStorage, clearCanvas } = useFlowStore();
-  const { theme, cycleTheme } = useThemeStore();
+  const { saveToStorage, loadFromStorage, clearCanvas, showGrid, toggleGrid } = useFlowStore();
+  const { theme, setTheme } = useThemeStore();
   const { exportPng } = useExport();
 
-  const handleClear = () => {
-    if (confirm('Clear the canvas? This cannot be undone.')) {
-      clearCanvas();
-    }
-  };
+  const handleClear = useCallback(() => {
+    if (confirm('Clear the canvas? This cannot be undone.')) clearCanvas();
+  }, [clearCanvas]);
+
+  const fileItems: MenuItem[] = [
+    { label: 'Save',       shortcut: '⌘S', action: saveToStorage },
+    { label: 'Load',       shortcut: '⌘O', action: loadFromStorage },
+    { separator: true },
+    { label: 'Export PNG', shortcut: '⌘E', action: exportPng },
+    { separator: true },
+    { label: 'Clear Canvas', action: handleClear, danger: true },
+  ];
+
+  const windowItems: MenuItem[] = [
+    ...(['blueprint', 'dark', 'light'] as ThemeName[]).map((t) => ({
+      label: THEME_LABELS[t],
+      checked: theme === t,
+      action: () => setTheme(t),
+    })),
+    { separator: true },
+    { label: 'Show Grid', checked: showGrid, action: toggleGrid },
+  ];
 
   return (
     <header
       style={{
-        height: '44px',
+        height: 36,
         background: 'var(--color-toolbar-bg)',
         borderBottom: '1px solid var(--color-node-border)',
         display: 'flex',
         alignItems: 'center',
-        gap: '8px',
-        padding: '0 16px',
+        padding: '0 12px',
+        gap: 2,
+        userSelect: 'none',
       }}
     >
       {/* App name */}
-      <span
-        style={{
-          fontSize: '14px',
-          fontWeight: 700,
-          color: 'var(--color-toolbar-text)',
-          marginRight: '12px',
-          letterSpacing: '0.04em',
-          opacity: 0.9,
-        }}
-      >
+      <span style={{
+        fontSize: 11,
+        fontWeight: 700,
+        color: 'var(--color-node-border)',
+        letterSpacing: '0.14em',
+        textTransform: 'uppercase',
+        marginRight: 8,
+      }}>
         Blueprint
       </span>
 
-      <div style={{ width: '1px', height: '20px', background: 'var(--color-node-border)' }} />
+      <div style={{ width: 1, height: 14, background: 'var(--color-node-border)', opacity: 0.2, marginRight: 4 }} />
 
-      <ToolbarButton onClick={saveToStorage} title="Save to localStorage">
-        <Save size={14} /> Save
-      </ToolbarButton>
-
-      <ToolbarButton onClick={loadFromStorage} title="Load from localStorage">
-        <FolderOpen size={14} /> Load
-      </ToolbarButton>
-
-      <ToolbarButton onClick={exportPng} title="Export as PNG">
-        <Download size={14} /> Export
-      </ToolbarButton>
-
-      <ToolbarButton onClick={handleClear} title="Clear canvas" danger>
-        <Trash2 size={14} /> Clear
-      </ToolbarButton>
-
-      {/* Spacer */}
-      <div style={{ flex: 1 }} />
-
-      {/* Theme toggle */}
-      <ToolbarButton
-        onClick={cycleTheme}
-        title={`Switch to ${THEME_LABELS[NEXT_THEME[theme]]} theme`}
-      >
-        {THEME_ICONS[theme]}
-        {THEME_LABELS[theme]}
-      </ToolbarButton>
+      <Menu label="File"   items={fileItems} />
+      <Menu label="Window" items={windowItems} />
     </header>
   );
 }

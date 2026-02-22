@@ -1,26 +1,26 @@
-import { User, Globe, Wifi, Network, Shield, Server, Radio, Box, Type, Square, Circle, Triangle } from 'lucide-react';
-import { CloudflareIcon, DatabaseIcon, RedisIcon, StorageIcon, KafkaIcon } from '../../icons';
+import { MdPerson, MdPublic, MdWifi, MdHub, MdSecurity, MdStorage, MdRouter, MdTitle, MdSquare, MdCircle, MdChangeHistory } from 'react-icons/md';
+import { SiCloudflare, SiRedis, SiAmazons3, SiApachekafka, SiDocker, SiPostgresql } from 'react-icons/si';
 import type { PaletteItem as PaletteItemType } from '../../types/palette';
 import type { NodeType } from '../../types/nodes';
 
 const ICONS: Record<NodeType, React.ReactNode> = {
-  text:         <Type size={16} />,
-  rectangle:    <Square size={16} />,
-  circle:       <Circle size={16} />,
-  triangle:     <Triangle size={16} />,
-  client:       <User size={16} />,
-  dns:          <Globe size={16} />,
-  cloudflare:   <CloudflareIcon size={16} />,
-  cdn:          <Wifi size={16} />,
-  loadbalancer: <Network size={16} />,
-  firewall:     <Shield size={16} />,
-  service:      <Server size={16} />,
-  apigateway:   <Radio size={16} />,
-  container:    <Box size={16} />,
-  database:     <DatabaseIcon size={16} />,
-  cache:        <RedisIcon size={16} />,
-  storage:      <StorageIcon size={16} />,
-  messagequeue: <KafkaIcon size={16} />,
+  text:         <MdTitle size={16} />,
+  rectangle:    <MdSquare size={16} />,
+  circle:       <MdCircle size={16} />,
+  triangle:     <MdChangeHistory size={16} />,
+  client:       <MdPerson size={16} />,
+  dns:          <MdPublic size={16} />,
+  cloudflare:   <SiCloudflare size={14} />,
+  cdn:          <MdWifi size={16} />,
+  loadbalancer: <MdHub size={16} />,
+  firewall:     <MdSecurity size={16} />,
+  service:      <MdStorage size={16} />,
+  apigateway:   <MdRouter size={16} />,
+  container:    <SiDocker size={14} />,
+  database:     <SiPostgresql size={14} />,
+  cache:        <SiRedis size={14} />,
+  storage:      <SiAmazons3 size={14} />,
+  messagequeue: <SiApachekafka size={14} />,
 };
 
 interface Props {

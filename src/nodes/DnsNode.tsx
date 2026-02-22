@@ -1,8 +1,8 @@
 import { type NodeProps } from '@xyflow/react';
-import { Globe } from 'lucide-react';
+import { MdPublic } from 'react-icons/md';
 import { BaseNode } from './BaseNode';
 import type { AppNode } from '../types/nodes';
 
 export function DnsNode(props: NodeProps<AppNode>) {
-  return <BaseNode {...props} icon={<Globe size={22} />} accentColor="#22d3ee" />;
+  return <BaseNode {...props} icon={<MdPublic size={16} />} accentColor="#22d3ee" />;
 }

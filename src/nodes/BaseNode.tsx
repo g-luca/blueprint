@@ -23,22 +23,23 @@ const FONT_PREVIEW: Record<FontFamily, string> = {
 // ─── Toolbar helpers ──────────────────────────────────────────────────────────
 
 const toolBtn = (active = false): React.CSSProperties => ({
-  padding: '2px 7px',
+  padding: '2px 6px',
   border: 'none',
-  borderRadius: '4px',
+  borderRadius: '3px',
   cursor: 'pointer',
-  fontSize: '11px',
+  fontSize: '10px',
   fontWeight: 600,
   lineHeight: '18px',
   background: active ? 'var(--color-selection-ring)' : 'transparent',
-  color: active ? 'var(--color-canvas-bg)' : 'var(--color-toolbar-text)',
-  opacity: active ? 1 : 0.75,
+  color: active ? '#fff' : 'var(--color-toolbar-text)',
+  opacity: active ? 1 : 0.7,
   transition: 'none',
 });
 
 const DIVIDER: React.CSSProperties = {
-  width: 1, height: 16,
+  width: 1, height: 14,
   background: 'var(--color-node-border)',
+  opacity: 0.4,
   margin: '0 2px', flexShrink: 0,
 };
 
@@ -47,7 +48,6 @@ const DIVIDER: React.CSSProperties = {
 export interface BaseNodeProps extends NodeProps<AppNode> {
   icon?: React.ReactNode;
   accentColor?: string;
-  /** Extra styles merged onto the node body div — used by shape nodes */
   bodyStyle?: React.CSSProperties;
 }
 
@@ -65,13 +65,11 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
   const updateNodeData  = useFlowStore((s) => s.updateNodeData);
   const theme = useThemeStore((s) => s.theme);
 
-  const fontSize   = d.fontSize   ?? 12;
+  const fontSize   = d.fontSize   ?? 11;
   const fontFamily = d.fontFamily ?? 'sans';
-  // text === undefined → section hidden; '' | string → section shown (persisted in Zustand)
   const text           = d.text;
   const showTextSection = text !== undefined;
 
-  // Auto-focus textarea whenever editingText flips to true
   useEffect(() => {
     if (editingText) textRef.current?.focus();
   }, [editingText]);
@@ -132,7 +130,7 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
     [id, fontSize, updateNodeData]
   );
 
-  // ── Text section toggle — state persisted to Zustand so it survives re-renders ──
+  // ── Text section toggle ────────────────────────────────────────────────────
 
   const toggleTextSection = useCallback(() => {
     if (showTextSection) {
@@ -148,11 +146,11 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
 
   const effectiveAccent =
     theme === 'blueprint'
-      ? 'rgba(255,255,255,0.9)'
+      ? 'var(--color-node-border)'
       : (accentColor ?? 'var(--color-node-text)');
 
   const selectionShadow = selected
-    ? '0 0 0 2px var(--color-selection-ring)'
+    ? '0 0 0 1.5px var(--color-selection-ring)'
     : undefined;
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -161,40 +159,34 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
     <>
       <NodeResizer
         isVisible={selected}
-        minWidth={80}
-        minHeight={60}
-        lineStyle={{ stroke: 'var(--color-selection-ring)', strokeWidth: 1, strokeDasharray: '4 3' }}
+        minWidth={60}
+        minHeight={40}
+        lineStyle={{ stroke: 'var(--color-selection-ring)', strokeWidth: 1, strokeDasharray: '3 2', opacity: 0.6 }}
         handleStyle={{
           background: 'var(--color-canvas-bg)',
-          border: '1.5px solid var(--color-selection-ring)',
-          width: 8, height: 8, borderRadius: 2,
+          border: '1px solid var(--color-selection-ring)',
+          width: 6, height: 6, borderRadius: 1,
         }}
       />
 
-      {/*
-        Toolbar rendered as a regular absolutely-positioned div — NOT a portal.
-        NodeToolbar uses a portal which causes the pane's click handler to fire
-        (deselecting the node) before the button onClick completes, resetting all
-        local state. This approach keeps the toolbar in the node's own DOM subtree,
-        so stopPropagation on mousedown reliably blocks that deselection.
-      */}
+      {/* Inline toolbar — absolutely positioned, NOT a NodeToolbar portal */}
       {selected && (
         <div
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           style={{
             position: 'absolute',
-            bottom: 'calc(100% + 8px)',
+            bottom: 'calc(100% + 6px)',
             left: '50%',
             transform: 'translateX(-50%)',
             display: 'flex',
             alignItems: 'center',
-            gap: '3px',
+            gap: '2px',
             background: 'var(--color-toolbar-bg)',
             border: '1px solid var(--color-node-border)',
-            borderRadius: '8px',
-            padding: '4px 8px',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.35)',
+            borderRadius: '6px',
+            padding: '3px 6px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
             whiteSpace: 'nowrap',
             zIndex: 1000,
             pointerEvents: 'all',
@@ -217,13 +209,13 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
 
           {/* Font size */}
           <button onMouseDown={(e) => e.stopPropagation()} onClick={() => changeFontSize(-1)}
-            title="Smaller" style={{ ...toolBtn(), padding: '2px 5px' }}>A−</button>
-          <span style={{ fontSize: '11px', color: 'var(--color-toolbar-text)', opacity: 0.75,
-            minWidth: '30px', textAlign: 'center' }}>
-            {fontSize}px
+            title="Smaller" style={{ ...toolBtn(), padding: '2px 4px' }}>A−</button>
+          <span style={{ fontSize: '10px', color: 'var(--color-toolbar-text)', opacity: 0.6,
+            minWidth: '26px', textAlign: 'center' }}>
+            {fontSize}
           </span>
           <button onMouseDown={(e) => e.stopPropagation()} onClick={() => changeFontSize(+1)}
-            title="Larger" style={{ ...toolBtn(), padding: '2px 5px' }}>A+</button>
+            title="Larger" style={{ ...toolBtn(), padding: '2px 4px' }}>A+</button>
 
           <div style={DIVIDER} />
 
@@ -249,60 +241,62 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
           width: '100%', height: '100%',
           boxSizing: 'border-box',
           background: 'var(--color-node-bg)',
-          border: '1.5px solid var(--color-node-border)',
-          borderRadius: '8px',
-          padding: '10px 12px',
-          display: 'flex', flexDirection: 'column', alignItems: 'center',
-          gap: '5px',
+          border: '1px solid var(--color-node-border)',
+          borderRadius: '6px',
+          padding: '0 10px',
+          display: 'flex', flexDirection: 'column', justifyContent: 'center',
           color: 'var(--color-node-text)',
-          backdropFilter: theme === 'blueprint' ? 'blur(4px)' : undefined,
           cursor: 'default',
           userSelect: 'none',
           overflow: 'hidden',
           boxShadow: selectionShadow,
-          // Shape overrides (circle, text block, etc.)
           ...bodyStyle,
         }}
       >
-        {/* Icon (omitted for shape nodes) */}
-        {icon && (
-          <div style={{ color: effectiveAccent, display: 'flex', flexShrink: 0 }}>
-            {icon}
-          </div>
-        )}
+        {/* Header row: icon + label side by side */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '7px',
+          width: '100%', flexShrink: 0,
+        }}>
+          {icon && (
+            <div style={{ color: effectiveAccent, display: 'flex', flexShrink: 0, opacity: 0.9 }}>
+              {icon}
+            </div>
+          )}
 
-        {/* Label — font family & size apply here so changes are immediately visible */}
-        {editingLabel ? (
-          <input
-            ref={labelRef}
-            value={draftLabel}
-            onChange={(e) => setDraftLabel(e.target.value)}
-            onBlur={commitLabel}
-            onKeyDown={onLabelKey}
-            autoFocus
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'transparent', border: 'none',
-              borderBottom: '1px solid var(--color-node-border)',
-              color: 'var(--color-node-text)',
+          {editingLabel ? (
+            <input
+              ref={labelRef}
+              value={draftLabel}
+              onChange={(e) => setDraftLabel(e.target.value)}
+              onBlur={commitLabel}
+              onKeyDown={onLabelKey}
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                flex: 1, background: 'transparent', border: 'none',
+                borderBottom: '1px solid var(--color-node-border)',
+                color: 'var(--color-node-text)',
+                fontSize: `${fontSize}px`,
+                fontFamily: FONT_FAMILIES[fontFamily],
+                fontWeight: 600, outline: 'none', minWidth: 0,
+              }}
+            />
+          ) : (
+            <span style={{
+              flex: 1,
               fontSize: `${fontSize}px`,
               fontFamily: FONT_FAMILIES[fontFamily],
-              fontWeight: 600, textAlign: 'center', outline: 'none',
-              width: '100%', flexShrink: 0,
-            }}
-          />
-        ) : (
-          <span style={{
-            fontSize: `${fontSize}px`,
-            fontFamily: FONT_FAMILIES[fontFamily],
-            fontWeight: 600,
-            letterSpacing: '0.02em',
-            textAlign: 'center',
-            flexShrink: 0,
-          }}>
-            {d.label}
-          </span>
-        )}
+              fontWeight: 600,
+              letterSpacing: '0.03em',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {d.label}
+            </span>
+          )}
+        </div>
 
         {/* Optional text body */}
         {showTextSection && (
@@ -310,10 +304,11 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
             onClick={(e) => e.stopPropagation()}
             onDoubleClick={(e) => e.stopPropagation()}
             style={{
-              flex: 1, width: '100%',
+              width: '100%',
               borderTop: '1px solid var(--color-node-border)',
-              paddingTop: '6px', marginTop: '2px',
-              minHeight: 0, display: 'flex', flexDirection: 'column',
+              marginTop: '6px', paddingTop: '5px',
+              opacity: 0.7,
+              flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column',
             }}
           >
             {editingText ? (
@@ -331,7 +326,7 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
                   fontSize: `${fontSize}px`,
                   fontFamily: FONT_FAMILIES[fontFamily],
                   lineHeight: 1.5, resize: 'none', outline: 'none',
-                  minHeight: '36px',
+                  minHeight: '32px',
                 }}
               />
             ) : (
@@ -342,7 +337,7 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
                   fontSize: `${fontSize}px`,
                   fontFamily: FONT_FAMILIES[fontFamily],
                   lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                  opacity: text ? 0.85 : 0.35, cursor: 'text',
+                  opacity: text ? 1 : 0.4, cursor: 'text',
                 }}
               >
                 {text || 'Click to add text…'}

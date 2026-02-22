@@ -15,6 +15,9 @@ import { createId } from '../utils/id';
 interface FlowState {
   nodes: AppNode[];
   edges: AppEdge[];
+  clipboard: { nodes: AppNode[]; edges: AppEdge[] } | null;
+  showGrid: boolean;
+  toggleGrid: () => void;
   onNodesChange: (changes: NodeChange<AppNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<AppEdge>[]) => void;
   onConnect: (connection: Connection) => void;
@@ -25,6 +28,8 @@ interface FlowState {
   updateNodeData: (id: string, patch: Partial<BaseNodeData>) => void;
   updateEdgeData: (id: string, patch: Partial<FlowEdgeData>) => void;
   removeSelectedElements: () => void;
+  copySelected: () => void;
+  pasteClipboard: () => void;
   saveToStorage: () => void;
   loadFromStorage: () => void;
   clearCanvas: () => void;
@@ -33,6 +38,9 @@ interface FlowState {
 export const useFlowStore = create<FlowState>((set, get) => ({
   nodes: [],
   edges: [],
+  clipboard: null,
+  showGrid: true,
+  toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
 
   onNodesChange: (changes) =>
     set({ nodes: applyNodeChanges(changes, get().nodes) }),
@@ -84,6 +92,54 @@ export const useFlowStore = create<FlowState>((set, get) => ({
       nodes: get().nodes.filter((n) => !n.selected),
       edges: get().edges.filter((e) => !e.selected),
     }),
+
+  copySelected: () => {
+    const { nodes, edges } = get();
+    const selectedNodes = nodes.filter((n) => n.selected);
+    if (selectedNodes.length === 0) return;
+    const selectedIds = new Set(selectedNodes.map((n) => n.id));
+    // Include edges whose both endpoints are in the selection
+    const selectedEdges = edges.filter(
+      (e) => selectedIds.has(e.source) && selectedIds.has(e.target)
+    );
+    set({ clipboard: { nodes: selectedNodes, edges: selectedEdges } });
+  },
+
+  pasteClipboard: () => {
+    const { clipboard, nodes, edges } = get();
+    if (!clipboard || clipboard.nodes.length === 0) return;
+
+    const OFFSET = 20;
+    const idMap = new Map<string, string>();
+
+    const newNodes: AppNode[] = clipboard.nodes.map((n) => {
+      const newId = createId(n.type ?? 'node');
+      idMap.set(n.id, newId);
+      return {
+        ...n,
+        id: newId,
+        position: { x: n.position.x + OFFSET, y: n.position.y + OFFSET },
+        selected: true,
+      };
+    });
+
+    const newEdges: AppEdge[] = clipboard.edges
+      .filter((e) => idMap.has(e.source) && idMap.has(e.target))
+      .map((e) => ({
+        ...e,
+        id: createId('edge'),
+        source: idMap.get(e.source)!,
+        target: idMap.get(e.target)!,
+        selected: true,
+      }));
+
+    set({
+      nodes: [...nodes.map((n) => ({ ...n, selected: false })), ...newNodes],
+      edges: [...edges.map((e) => ({ ...e, selected: false })), ...newEdges],
+      // Update clipboard to paste from the new positions next time
+      clipboard: { nodes: newNodes, edges: newEdges },
+    });
+  },
 
   saveToStorage: () => {
     const { nodes, edges } = get();
