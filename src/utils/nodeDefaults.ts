@@ -1,4 +1,4 @@
-import type { NodeType } from '../types/nodes';
+import type { NodeType, BaseNodeData } from '../types/nodes';
 
 // All dimensions are multiples of 20 to align with the snap grid
 export const NODE_DIMENSIONS: Record<NodeType, { width: number; height: number }> = {
@@ -15,7 +15,7 @@ export const NODE_DIMENSIONS: Record<NodeType, { width: number; height: number }
   dns:          { width: 100, height: 40  },
   cloudflare:   { width: 120, height: 40  },
   cdn:          { width: 100, height: 40  },
-  loadbalancer: { width: 140, height: 40  },
+  loadbalancer: { width: 160, height: 60  },
   firewall:     { width: 120, height: 40  },
   service:      { width: 120, height: 40  },
   apigateway:   { width: 140, height: 40  },
@@ -24,6 +24,11 @@ export const NODE_DIMENSIONS: Record<NodeType, { width: number; height: number }
   cache:        { width: 100, height: 40  },
   storage:      { width: 120, height: 40  },
   messagequeue: { width: 140, height: 40  },
+};
+
+/** Per-type data overrides applied when a node is first dropped onto the canvas. */
+export const NODE_DEFAULT_DATA: Partial<Record<NodeType, Partial<BaseNodeData>>> = {
+  cloudflare: { tps: 3 },
 };
 
 export const NODE_DEFAULT_LABELS: Record<NodeType, string> = {

@@ -25,7 +25,8 @@ export type NodeType =
   | 'messagequeue';
 
 export type FontFamily = 'sans' | 'serif' | 'mono';
-export type TextAlign = 'left' | 'center' | 'right';
+export type TextAlign  = 'left' | 'center' | 'right';
+export type LbPolicy   = 'round-robin' | 'random' | 'least-conn' | 'ip-hash';
 
 export interface BaseNodeData {
   label: string;
@@ -33,6 +34,12 @@ export interface BaseNodeData {
   fontSize?: number;
   fontFamily?: FontFamily;
   textAlign?: TextAlign;
+  /** Whether this node emits animated dots. Defaults to true for client types, false otherwise. */
+  animated?: boolean;
+  /** Throughput in k-TPS (1 = 1 000 TPS = 1 dot/s). Only meaningful when animated is true. */
+  tps?: number;
+  /** Load-balancing policy (loadbalancer nodes only). */
+  lbPolicy?: LbPolicy;
   [key: string]: unknown;
 }
 

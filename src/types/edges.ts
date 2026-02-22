@@ -15,7 +15,6 @@ export interface FlowEdgeData extends Record<string, unknown> {
   strokeStyle?: EdgeStrokeStyle;
   routing?: EdgeRouting;
   arrowhead?: boolean;
-  animated?: boolean;
 }
 
 export type AppEdge = Edge<FlowEdgeData, 'flow' | 'labeled'>;

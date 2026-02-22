@@ -18,12 +18,13 @@ export interface BaseNodeProps extends NodeProps<AppNode> {
   icon?: React.ReactNode;
   accentColor?: string;
   bodyStyle?: React.CSSProperties;
+  footer?: React.ReactNode;
 }
 
 const GRID = 20;
 const snap = (v: number) => Math.round(v / GRID) * GRID;
 
-export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: BaseNodeProps) {
+export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle, footer }: BaseNodeProps) {
   const d = data as BaseNodeData;
   const { updateNode } = useReactFlow();
 
@@ -234,6 +235,24 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
                 {text || 'Click to add text…'}
               </p>
             )}
+          </div>
+        )}
+
+        {/* Optional footer (e.g. policy selector) */}
+        {footer && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              borderTop: '1px solid var(--color-node-border)',
+              marginTop: '5px',
+              paddingTop: '5px',
+              flexShrink: 0,
+            }}
+          >
+            {footer}
           </div>
         )}
       </div>

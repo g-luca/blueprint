@@ -121,9 +121,8 @@ export function EdgePanel({ id, data }: Props) {
   const color       = (data.color       ?? 'default')  as EdgeColor;
   const strokeWidth = (data.strokeWidth ?? 'medium')   as EdgeStrokeWidth;
   const strokeStyle = (data.strokeStyle ?? 'solid')    as EdgeStrokeStyle;
-  const routing     = (data.routing     ?? 'step')     as EdgeRouting;
+  const routing     = (data.routing     ?? 'smoothstep') as EdgeRouting;
   const arrowhead   = data.arrowhead ?? true;
-  const isAnimated  = data.animated  ?? true;
   const customColor = data.customColor ?? '#888888';
 
   const upd = (patch: Partial<FlowEdgeData>) => updateEdgeData(id, patch);
@@ -221,16 +220,6 @@ export function EdgePanel({ id, data }: Props) {
         <Btn active={arrowhead}  onClick={() => upd({ arrowhead: true })}  title="Arrowhead"><IconArrow /></Btn>
       </Section>
 
-      {/* Animation */}
-      <Section label="Animation">
-        <Btn active={!isAnimated} onClick={() => upd({ animated: false })} title="No animation"><IconNoArrow /></Btn>
-        <Btn active={isAnimated}  onClick={() => upd({ animated: true })}  title="Animated dots">
-          <svg width="20" height="10" viewBox="0 0 20 10">
-            <line x1="1" y1="5" x2="19" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2 3"/>
-            <circle cx="4" cy="5" r="2" fill="currentColor"/>
-          </svg>
-        </Btn>
-      </Section>
     </div>
   );
 }

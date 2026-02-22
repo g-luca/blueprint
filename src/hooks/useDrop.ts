@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useReactFlow } from '@xyflow/react';
 import type { NodeType, BaseNodeData, AppNode } from '../types/nodes';
 import { createId } from '../utils/id';
-import { NODE_DEFAULT_LABELS, NODE_DIMENSIONS } from '../utils/nodeDefaults';
+import { NODE_DEFAULT_LABELS, NODE_DEFAULT_DATA, NODE_DIMENSIONS } from '../utils/nodeDefaults';
 import { useFlowStore } from '../store/useFlowStore';
 
 const SNAP = 20;
@@ -37,7 +37,7 @@ export function useDrop() {
         // Explicit initial dimensions so NodeResizer has a starting size
         width,
         height,
-        data: { label: NODE_DEFAULT_LABELS[type] } satisfies BaseNodeData,
+        data: { label: NODE_DEFAULT_LABELS[type], ...NODE_DEFAULT_DATA[type] } satisfies BaseNodeData,
       };
 
       addNode(node);
