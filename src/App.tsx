@@ -5,6 +5,7 @@ import { THEMES } from './themes';
 import { Sidebar } from './components/Sidebar/Sidebar';
 import { Toolbar } from './components/Toolbar/Toolbar';
 import { Canvas } from './components/Canvas/Canvas';
+import { Toast } from './components/Toast';
 
 function AppInner() {
   const theme = useThemeStore((s) => s.theme);
@@ -32,6 +33,7 @@ function AppInner() {
         <Sidebar />
         <Canvas />
       </div>
+      <Toast />
     </div>
   );
 }

@@ -12,37 +12,6 @@ export const FONT_FAMILIES: Record<FontFamily, string> = {
   mono:  '"JetBrains Mono", "Fira Code", Menlo, "Courier New", monospace',
 };
 
-const FONT_SIZES = [10, 11, 12, 13, 14, 16, 18, 20, 24];
-
-const FONT_PREVIEW: Record<FontFamily, string> = {
-  sans:  'sans-serif',
-  serif: 'serif',
-  mono:  'monospace',
-};
-
-// ─── Toolbar helpers ──────────────────────────────────────────────────────────
-
-const toolBtn = (active = false): React.CSSProperties => ({
-  padding: '2px 6px',
-  border: 'none',
-  borderRadius: '3px',
-  cursor: 'pointer',
-  fontSize: '10px',
-  fontWeight: 600,
-  lineHeight: '18px',
-  background: active ? 'var(--color-selection-ring)' : 'transparent',
-  color: active ? '#fff' : 'var(--color-toolbar-text)',
-  opacity: active ? 1 : 0.7,
-  transition: 'none',
-});
-
-const DIVIDER: React.CSSProperties = {
-  width: 1, height: 14,
-  background: 'var(--color-node-border)',
-  opacity: 0.4,
-  margin: '0 2px', flexShrink: 0,
-};
-
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export interface BaseNodeProps extends NodeProps<AppNode> {
@@ -115,43 +84,6 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
     if (e.key === 'Escape') commitText();
   }, [commitText]);
 
-  // ── Font ───────────────────────────────────────────────────────────────────
-
-  const applyFontFamily = useCallback(
-    (ff: FontFamily) => updateNodeData(id, { fontFamily: ff }),
-    [id, updateNodeData]
-  );
-
-  const applyTextAlign = useCallback(
-    (ta: TextAlign) => updateNodeData(id, { textAlign: ta }),
-    [id, updateNodeData]
-  );
-
-  const changeFontSize = useCallback(
-    (delta: number) => {
-      let idx = FONT_SIZES.indexOf(fontSize);
-      if (idx === -1) {
-        idx = FONT_SIZES.findIndex((s) => s > fontSize);
-        if (idx === -1) idx = FONT_SIZES.length - 1;
-      }
-      const next = Math.max(0, Math.min(FONT_SIZES.length - 1, idx + delta));
-      updateNodeData(id, { fontSize: FONT_SIZES[next] });
-    },
-    [id, fontSize, updateNodeData]
-  );
-
-  // ── Text section toggle ────────────────────────────────────────────────────
-
-  const toggleTextSection = useCallback(() => {
-    if (showTextSection) {
-      updateNodeData(id, { text: undefined });
-      setEditingText(false);
-    } else {
-      updateNodeData(id, { text: '' });
-      setEditingText(true);
-    }
-  }, [showTextSection, id, updateNodeData]);
-
   // ── Styles ─────────────────────────────────────────────────────────────────
 
   const effectiveAccent =
@@ -185,81 +117,6 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle }: B
           width: 6, height: 6, borderRadius: 1,
         }}
       />
-
-      {/* Inline toolbar — absolutely positioned, NOT a NodeToolbar portal */}
-      {selected && (
-        <div
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            position: 'absolute',
-            bottom: 'calc(100% + 6px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '2px',
-            background: 'var(--color-toolbar-bg)',
-            border: '1px solid var(--color-node-border)',
-            borderRadius: '6px',
-            padding: '3px 6px',
-            boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-            whiteSpace: 'nowrap',
-            zIndex: 1000,
-            pointerEvents: 'all',
-          }}
-        >
-          {/* Font family */}
-          {(['sans', 'serif', 'mono'] as const).map((ff) => (
-            <button
-              key={ff}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => applyFontFamily(ff)}
-              title={`Font: ${ff}`}
-              style={{ ...toolBtn(fontFamily === ff), fontFamily: FONT_PREVIEW[ff] }}
-            >
-              {ff === 'sans' ? 'Sans' : ff === 'serif' ? 'Serif' : 'Mono'}
-            </button>
-          ))}
-
-          <div style={DIVIDER} />
-
-          {/* Font size */}
-          <button onMouseDown={(e) => e.stopPropagation()} onClick={() => changeFontSize(-1)}
-            title="Smaller" style={{ ...toolBtn(), padding: '2px 4px' }}>A−</button>
-          <span style={{ fontSize: '10px', color: 'var(--color-toolbar-text)', opacity: 0.6,
-            minWidth: '26px', textAlign: 'center' }}>
-            {fontSize}
-          </span>
-          <button onMouseDown={(e) => e.stopPropagation()} onClick={() => changeFontSize(+1)}
-            title="Larger" style={{ ...toolBtn(), padding: '2px 4px' }}>A+</button>
-
-          <div style={DIVIDER} />
-
-          {/* Text alignment */}
-          {(['left', 'center', 'right'] as TextAlign[]).map((ta) => (
-            <button
-              key={ta}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={() => applyTextAlign(ta)}
-              title={`Align ${ta}`}
-              style={{ ...toolBtn(textAlign === ta), padding: '2px 5px', fontSize: '11px' }}
-            >
-              {ta === 'left' ? '⬅' : ta === 'center' ? '↔' : '➡'}
-            </button>
-          ))}
-
-          <div style={DIVIDER} />
-
-          {/* Text section toggle */}
-          <button
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={toggleTextSection}
-            title={showTextSection ? 'Remove text' : 'Add text'}
-            style={toolBtn(showTextSection)}
-          >T</button>
-        </div>
-      )}
 
       <Handle type="source" position={Position.Top}    id="top" />
       <Handle type="source" position={Position.Bottom} id="bottom" />

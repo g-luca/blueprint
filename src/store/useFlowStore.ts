@@ -17,6 +17,8 @@ interface FlowState {
   edges: AppEdge[];
   clipboard: { nodes: AppNode[]; edges: AppEdge[] } | null;
   showGrid: boolean;
+  toast: string | null;
+  showToast: (msg: string) => void;
   toggleGrid: () => void;
   onNodesChange: (changes: NodeChange<AppNode>[]) => void;
   onEdgesChange: (changes: EdgeChange<AppEdge>[]) => void;
@@ -44,6 +46,11 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   clipboard: null,
   showGrid: true,
   toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
+  toast: null,
+  showToast: (msg) => {
+    set({ toast: msg });
+    setTimeout(() => set({ toast: null }), 2000);
+  },
 
   onNodesChange: (changes) =>
     set({ nodes: applyNodeChanges(changes, get().nodes) }),
@@ -151,8 +158,9 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   },
 
   saveToStorage: () => {
-    const { nodes, edges } = get();
+    const { nodes, edges, showToast } = get();
     saveToLocalStorage(nodes, edges);
+    showToast('Saved');
   },
 
   loadFromStorage: () => {

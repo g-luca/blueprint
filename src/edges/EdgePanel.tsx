@@ -15,7 +15,7 @@ function Section({ label, children }: { label: string; children: React.ReactNode
         textTransform: 'uppercase', opacity: 0.5, color: 'var(--color-toolbar-text)' }}>
         {label}
       </span>
-      <div style={{ display: 'flex', gap: '4px' }}>{children}</div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>{children}</div>
     </div>
   );
 }
@@ -120,9 +120,10 @@ export function EdgePanel({ id, data }: Props) {
 
   const color       = (data.color       ?? 'default')  as EdgeColor;
   const strokeWidth = (data.strokeWidth ?? 'medium')   as EdgeStrokeWidth;
-  const strokeStyle = (data.strokeStyle ?? 'dashed')   as EdgeStrokeStyle;
+  const strokeStyle = (data.strokeStyle ?? 'solid')    as EdgeStrokeStyle;
   const routing     = (data.routing     ?? 'step')     as EdgeRouting;
   const arrowhead   = data.arrowhead ?? true;
+  const isAnimated  = data.animated  ?? true;
   const customColor = data.customColor ?? '#888888';
 
   const upd = (patch: Partial<FlowEdgeData>) => updateEdgeData(id, patch);
@@ -218,6 +219,17 @@ export function EdgePanel({ id, data }: Props) {
       <Section label="Arrowheads">
         <Btn active={!arrowhead} onClick={() => upd({ arrowhead: false })} title="No arrowhead"><IconNoArrow /></Btn>
         <Btn active={arrowhead}  onClick={() => upd({ arrowhead: true })}  title="Arrowhead"><IconArrow /></Btn>
+      </Section>
+
+      {/* Animation */}
+      <Section label="Animation">
+        <Btn active={!isAnimated} onClick={() => upd({ animated: false })} title="No animation"><IconNoArrow /></Btn>
+        <Btn active={isAnimated}  onClick={() => upd({ animated: true })}  title="Animated dots">
+          <svg width="20" height="10" viewBox="0 0 20 10">
+            <line x1="1" y1="5" x2="19" y2="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="2 3"/>
+            <circle cx="4" cy="5" r="2" fill="currentColor"/>
+          </svg>
+        </Btn>
       </Section>
     </div>
   );

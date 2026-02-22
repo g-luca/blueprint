@@ -15,6 +15,7 @@ export interface FlowEdgeData extends Record<string, unknown> {
   strokeStyle?: EdgeStrokeStyle;
   routing?: EdgeRouting;
   arrowhead?: boolean;
+  animated?: boolean;
 }
 
 export type AppEdge = Edge<FlowEdgeData, 'flow' | 'labeled'>;
@@ -29,7 +30,7 @@ export const PROTOCOL_COLORS: Record<EdgeProtocol, string> = {
 };
 
 export const EDGE_COLOR_VALUES: Record<EdgeColor, string> = {
-  default: 'var(--color-edge-stroke)',
+  default: 'var(--color-node-border)',
   red:     '#f87171',
   green:   '#4ade80',
   blue:    '#60a5fa',

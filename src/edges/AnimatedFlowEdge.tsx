@@ -6,7 +6,7 @@ import {
 } from '@xyflow/react';
 import type { AppEdge, FlowEdgeData } from '../types/edges';
 import { EDGE_COLOR_VALUES } from '../types/edges';
-import { useThemeStore } from '../store/useThemeStore';
+
 
 // ─── Arrowhead ────────────────────────────────────────────────────────────────
 
@@ -41,27 +41,22 @@ export function AnimatedFlowEdge({
   sourcePosition, targetPosition,
   data, selected,
 }: EdgeProps<AppEdge>) {
-  const theme = useThemeStore((s) => s.theme);
   const edgeData = (data ?? {}) as Partial<FlowEdgeData>;
 
   // Properties with defaults
   const colorKey    = edgeData.color       ?? 'default';
   const widthKey    = edgeData.strokeWidth ?? 'medium';
-  const styleKey    = edgeData.strokeStyle ?? 'dashed';
-  const routing     = edgeData.routing     ?? 'step';
+  const styleKey    = edgeData.strokeStyle ?? 'solid';
+  const routing     = edgeData.routing     ?? 'smoothstep';
   const showArrow   = edgeData.arrowhead   ?? true;
+  const isAnimated  = edgeData.animated    ?? true;
 
   // Resolved values
-  const resolvedColor =
+  const strokeColor =
     colorKey === 'custom' && edgeData.customColor
       ? edgeData.customColor
-      : (theme === 'blueprint' && colorKey === 'default')
-        ? 'var(--color-edge-stroke)'
-        : EDGE_COLOR_VALUES[colorKey];
-  const strokeColor = resolvedColor;
-  const dotColor = (theme === 'blueprint' && colorKey === 'default')
-    ? 'var(--color-edge-dot)'
-    : strokeColor;
+      : EDGE_COLOR_VALUES[colorKey];
+  const dotColor = strokeColor;
   const strokeWidth   = STROKE_WIDTH[widthKey];
   const strokeDash    = STROKE_DASH[styleKey];
   const strokeOpacity = selected ? 1 : 0.75;
@@ -96,7 +91,7 @@ export function AnimatedFlowEdge({
       )}
 
       {/* Animated dots */}
-      {[0, 0.6, 1.2].map((delay, i) => (
+      {isAnimated && [0, 0.6, 1.2].map((delay, i) => (
         <circle key={i} r="3" fill={dotColor} opacity="0.9">
           <animateMotion
             dur="1.8s"

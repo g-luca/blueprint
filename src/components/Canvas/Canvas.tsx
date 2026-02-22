@@ -19,7 +19,29 @@ import { useDrop } from '../../hooks/useDrop';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
 import { useThemeStore } from '../../store/useThemeStore';
 import { EdgePanel } from '../../edges/EdgePanel';
+import { NodePanel } from '../../nodes/NodePanel';
 import type { FlowEdgeData } from '../../types/edges';
+import type { BaseNodeData } from '../../types/nodes';
+
+// Fixed-position inspector panel shown when a node is selected
+function SelectedNodePanel() {
+  const selectedNode = useStore((s) => s.nodes.find((n) => n.selected));
+  if (!selectedNode) return null;
+  return (
+    <div
+      className="nodrag nopan"
+      style={{
+        position: 'absolute',
+        top: 16,
+        right: 16,
+        zIndex: 1000,
+        pointerEvents: 'all',
+      }}
+    >
+      <NodePanel id={selectedNode.id} data={selectedNode.data as BaseNodeData} />
+    </div>
+  );
+}
 
 // Fixed-position inspector panel shown when an edge is selected
 function SelectedEdgePanel() {
@@ -86,6 +108,7 @@ export function Canvas() {
           <Background variant={BackgroundVariant.Lines} gap={20} lineWidth={0.4} color={gridColors.fine} />
           <Background variant={BackgroundVariant.Lines} gap={100} lineWidth={1} color={gridColors.major} />
         </>}
+        <SelectedNodePanel />
         <SelectedEdgePanel />
         <Controls showInteractive={false}>
           <ControlButton
