@@ -1,10 +1,12 @@
 # blueprint
 
+Drag-and-drop canvas for drawing software architecture diagrams — early alpha, just vibes so far.
+
 ## Cloudflare Pages
 
 - Build command: `npm run build`
 - Build output directory: `dist`
-- SPA fallback: `public/_redirects` is set to `/* /index.html 200`
+- SPA fallback: `not_found_handling = "single-page-application"` in `wrangler.toml`
 
 If deploying with Wrangler:
 
