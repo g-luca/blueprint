@@ -1,0 +1,112 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+/* ── Global font ─────────────────────────────────────────────────────────────
+   Monospace stack for the UI chrome — gives the technical-manual feel.
+   Node labels override this with their own fontFamily setting.
+*/
+html, body {
+  font-family: ui-monospace, "JetBrains Mono", "Fira Code", Menlo, "Courier New", monospace;
+}
+
+/* CSS custom property placeholders — values injected by App.tsx */
+:root {
+  --color-canvas-bg:         #F3F4FF;
+  --color-canvas-dot:        rgba(59,79,255,0.08);
+  --color-canvas-grid-fine:  rgba(59,79,255,0.05);
+  --color-canvas-grid-major: rgba(59,79,255,0.13);
+  --color-node-bg:           #FFFFFF;
+  --color-node-border:       #3B4FFF;
+  --color-node-text:         #1A2480;
+  --color-node-glow:         transparent;
+  --color-edge-stroke:       #3B4FFF;
+  --color-edge-dot:          #7B8AFF;
+  --color-sidebar-bg:        #E8EAFF;
+  --color-sidebar-hover:     rgba(59,79,255,0.07);
+  --color-toolbar-bg:        #FFFFFF;
+  --color-toolbar-text:      #1A2480;
+  --color-toolbar-btn-hover: rgba(59,79,255,0.07);
+  --color-selection-ring:    #3B4FFF;
+  --color-minimap-bg:        rgba(232,234,255,0.97);
+  --color-minimap-node:      rgba(59,79,255,0.3);
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* ReactFlow pane cursor */
+.react-flow__pane {
+  cursor: crosshair;
+}
+
+/* ReactFlow background */
+.react-flow__background {
+  background-color: var(--color-canvas-bg) !important;
+}
+
+/* Handles */
+.react-flow__handle {
+  background: var(--color-node-border) !important;
+  border: 1.5px solid var(--color-canvas-bg) !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+}
+
+.react-flow__handle:hover {
+  background: var(--color-selection-ring) !important;
+}
+
+/* Controls */
+.react-flow__controls {
+  background: var(--color-toolbar-bg) !important;
+  border: 1px solid var(--color-node-border) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+}
+
+.react-flow__controls-button {
+  background: var(--color-toolbar-bg) !important;
+  border-bottom: 1px solid var(--color-node-border) !important;
+  color: var(--color-toolbar-text) !important;
+  fill: var(--color-toolbar-text) !important;
+}
+
+.react-flow__controls-button:hover {
+  background: var(--color-sidebar-hover) !important;
+}
+
+.react-flow__controls-button svg {
+  fill: var(--color-node-border) !important;
+}
+
+/* MiniMap */
+.react-flow__minimap {
+  background: var(--color-minimap-bg) !important;
+  border: 1px solid var(--color-node-border) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12) !important;
+}
+
+.react-flow__node:focus {
+  outline: none;
+}
+
+/* Attribution */
+.react-flow__attribution {
+  background: transparent !important;
+  color: var(--color-node-border) !important;
+  opacity: 0.3;
+  font-size: 9px;
+}
+
+.react-flow__attribution a {
+  color: var(--color-node-border) !important;
+}
