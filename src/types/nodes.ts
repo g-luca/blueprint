@@ -4,7 +4,7 @@ export type NodeType =
   | 'text'
   | 'rectangle'
   | 'circle'
-  | 'triangle'
+
   | 'browser'
   | 'ios'
   | 'android'
@@ -13,6 +13,7 @@ export type NodeType =
   | 'vr'
   | 'dns'
   | 'cloudflare'
+  | 'subdomain'
   | 'cdn'
   | 'loadbalancer'
   | 'firewall'
@@ -22,7 +23,17 @@ export type NodeType =
   | 'database'
   | 'cache'
   | 'storage'
-  | 'messagequeue';
+  | 'messagequeue'
+  | 'endpoint'
+  | 'line';
+
+export type HttpMethod  = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export type ApiProtocol = 'REST' | 'gRPC' | 'gRPC-bidi' | 'WS' | 'RPC';
+
+export interface ApiResponse {
+  code: string;
+  types?: string[];
+}
 
 export type FontFamily = 'sans' | 'serif' | 'mono';
 export type TextAlign  = 'left' | 'center' | 'right';
@@ -36,10 +47,12 @@ export interface BaseNodeData {
   textAlign?: TextAlign;
   /** Whether this node emits animated dots. Defaults to true for client types, false otherwise. */
   animated?: boolean;
-  /** Throughput in k-TPS (1 = 1 000 TPS = 1 dot/s). Only meaningful when animated is true. */
-  tps?: number;
+  /** Throughput in k-RPS (1 = 1 000 RPS = 1 dot/s). Only meaningful when animated is true. */
+  rps?: number;
   /** Load-balancing policy (loadbalancer nodes only). */
   lbPolicy?: LbPolicy;
+  /** Domain names hosted / proxied by this node (cloudflare, cdn, dns, etc.). */
+  domains?: string[];
   [key: string]: unknown;
 }
 

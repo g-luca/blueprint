@@ -19,12 +19,15 @@ export interface BaseNodeProps extends NodeProps<AppNode> {
   accentColor?: string;
   bodyStyle?: React.CSSProperties;
   footer?: React.ReactNode;
+  labelPlaceholder?: string;
+  multilineLabel?: boolean;
+  noHandles?: boolean;
 }
 
 const GRID = 20;
 const snap = (v: number) => Math.round(v / GRID) * GRID;
 
-export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle, footer }: BaseNodeProps) {
+export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle, footer, labelPlaceholder, multilineLabel, noHandles }: BaseNodeProps) {
   const d = data as BaseNodeData;
   const { updateNode } = useReactFlow();
 
@@ -32,8 +35,9 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle, foo
   const [draftLabel,   setDraftLabel]   = useState('');
   const [editingText,  setEditingText]  = useState(false);
   const [draftText,    setDraftText]    = useState('');
-  const labelRef = useRef<HTMLInputElement>(null);
-  const textRef  = useRef<HTMLTextAreaElement>(null);
+  const labelRef     = useRef<HTMLInputElement>(null);
+  const labelAreaRef = useRef<HTMLTextAreaElement>(null);
+  const textRef      = useRef<HTMLTextAreaElement>(null);
 
   const updateNodeLabel = useFlowStore((s) => s.updateNodeLabel);
   const updateNodeData  = useFlowStore((s) => s.updateNodeData);
@@ -54,19 +58,29 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle, foo
   const startLabelEdit = useCallback(() => {
     setDraftLabel(d.label);
     setEditingLabel(true);
-    setTimeout(() => labelRef.current?.select(), 20);
-  }, [d.label]);
+    if (multilineLabel) {
+      setTimeout(() => { labelAreaRef.current?.focus(); labelAreaRef.current?.select(); }, 20);
+    } else {
+      setTimeout(() => labelRef.current?.select(), 20);
+    }
+  }, [d.label, multilineLabel]);
 
   const commitLabel = useCallback(() => {
-    if (draftLabel.trim()) updateNodeLabel(id, draftLabel.trim());
+    const value = multilineLabel ? draftLabel : draftLabel.trim();
+    if (value) updateNodeLabel(id, value);
     setEditingLabel(false);
-  }, [draftLabel, id, updateNodeLabel]);
+  }, [draftLabel, id, updateNodeLabel, multilineLabel]);
 
-  const onLabelKey = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+  const onLabelKey = useCallback((e: React.KeyboardEvent) => {
     e.stopPropagation();
-    if (e.key === 'Enter')  commitLabel();
-    if (e.key === 'Escape') setEditingLabel(false);
-  }, [commitLabel]);
+    if (multilineLabel) {
+      // Enter inserts natural newline; Escape commits
+      if (e.key === 'Escape') commitLabel();
+    } else {
+      if (e.key === 'Enter')  commitLabel();
+      if (e.key === 'Escape') setEditingLabel(false);
+    }
+  }, [commitLabel, multilineLabel]);
 
   // ── Text body ──────────────────────────────────────────────────────────────
 
@@ -119,10 +133,12 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle, foo
         }}
       />
 
-      <Handle type="source" position={Position.Top}    id="top" />
-      <Handle type="source" position={Position.Bottom} id="bottom" />
-      <Handle type="source" position={Position.Left}   id="left" />
-      <Handle type="source" position={Position.Right}  id="right" />
+      {!noHandles && <>
+        <Handle type="source" position={Position.Top}    id="top" />
+        <Handle type="source" position={Position.Bottom} id="bottom" />
+        <Handle type="source" position={Position.Left}   id="left" />
+        <Handle type="source" position={Position.Right}  id="right" />
+      </>}
 
       {/* Node body */}
       <div
@@ -145,7 +161,9 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle, foo
       >
         {/* Header row: icon + label side by side */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: '7px',
+          display: 'flex',
+          alignItems: multilineLabel ? 'flex-start' : 'center',
+          gap: '7px',
           width: '100%', flexShrink: 0,
         }}>
           {icon && (
@@ -155,23 +173,47 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle, foo
           )}
 
           {editingLabel ? (
-            <input
-              ref={labelRef}
-              value={draftLabel}
-              onChange={(e) => setDraftLabel(e.target.value)}
-              onBlur={commitLabel}
-              onKeyDown={onLabelKey}
-              autoFocus
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                flex: 1, background: 'transparent', border: 'none',
-                borderBottom: '1px solid var(--color-node-border)',
-                color: 'var(--color-node-text)',
-                fontSize: `${fontSize}px`,
-                fontFamily: FONT_FAMILIES[fontFamily],
-                fontWeight: 600, outline: 'none', minWidth: 0,
-              }}
-            />
+            multilineLabel ? (
+              <textarea
+                ref={labelAreaRef}
+                value={draftLabel}
+                placeholder={labelPlaceholder}
+                onChange={(e) => setDraftLabel(e.target.value)}
+                onBlur={commitLabel}
+                onKeyDown={onLabelKey}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  flex: 1, background: 'transparent', border: 'none',
+                  borderBottom: '1px solid var(--color-node-border)',
+                  color: 'var(--color-node-text)',
+                  fontSize: `${fontSize}px`,
+                  fontFamily: FONT_FAMILIES[fontFamily],
+                  fontWeight: 600, outline: 'none', minWidth: 0,
+                  resize: 'none', width: '100%', lineHeight: 1.5,
+                  overflow: 'hidden',
+                }}
+              />
+            ) : (
+              <input
+                ref={labelRef}
+                value={draftLabel}
+                placeholder={labelPlaceholder}
+                onChange={(e) => setDraftLabel(e.target.value)}
+                onBlur={commitLabel}
+                onKeyDown={onLabelKey}
+                autoFocus
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  flex: 1, background: 'transparent', border: 'none',
+                  borderBottom: '1px solid var(--color-node-border)',
+                  color: 'var(--color-node-text)',
+                  fontSize: `${fontSize}px`,
+                  fontFamily: FONT_FAMILIES[fontFamily],
+                  fontWeight: 600, outline: 'none', minWidth: 0,
+                }}
+              />
+            )
           ) : (
             <span style={{
               flex: 1,
@@ -180,11 +222,12 @@ export function BaseNode({ id, data, selected, icon, accentColor, bodyStyle, foo
               fontWeight: 600,
               letterSpacing: '0.03em',
               overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              textOverflow: multilineLabel ? undefined : 'ellipsis',
+              whiteSpace: multilineLabel ? 'pre-wrap' : 'nowrap',
               textAlign,
+              opacity: d.label ? 1 : 0.35,
             }}>
-              {d.label}
+              {d.label || labelPlaceholder || ''}
             </span>
           )}
         </div>

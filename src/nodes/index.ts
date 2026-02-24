@@ -1,7 +1,7 @@
 import { TextNode } from './TextNode';
 import { RectangleNode } from './RectangleNode';
 import { CircleNode } from './CircleNode';
-import { TriangleNode } from './TriangleNode';
+
 import { BrowserNode } from './ClientNode';
 import { IosNode } from './IosNode';
 import { AndroidNode } from './AndroidNode';
@@ -20,13 +20,16 @@ import { DatabaseNode } from './DatabaseNode';
 import { CacheNode } from './CacheNode';
 import { StorageNode } from './StorageNode';
 import { MessageQueueNode } from './MessageQueueNode';
+import { SubdomainNode } from './SubdomainNode';
+import { EndpointNode } from './EndpointNode';
+import { LineNode } from './LineNode';
 import type { NodeTypes } from '@xyflow/react';
 
 export const nodeTypes = {
   text:         TextNode,
   rectangle:    RectangleNode,
   circle:       CircleNode,
-  triangle:     TriangleNode,
+
   browser:      BrowserNode,
   ios:          IosNode,
   android:      AndroidNode,
@@ -45,4 +48,7 @@ export const nodeTypes = {
   cache:        CacheNode,
   storage:      StorageNode,
   messagequeue: MessageQueueNode,
+  subdomain:    SubdomainNode,
+  endpoint:     EndpointNode,
+  line:         LineNode,
 } as NodeTypes;

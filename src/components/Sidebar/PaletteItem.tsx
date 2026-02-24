@@ -1,5 +1,6 @@
 import { MdOpenInBrowser, MdPhoneIphone, MdAndroid, MdTv, MdWatch, MdVrpano, MdPublic, MdWifi, MdHub, MdSecurity, MdStorage, MdRouter, MdTitle } from 'react-icons/md';
-import { BsSquare, BsCircle, BsTriangle } from 'react-icons/bs';
+import { Route, Braces, Minus } from 'lucide-react';
+import { BsSquare, BsCircle } from 'react-icons/bs';
 import { SiCloudflare, SiRedis, SiAmazons3, SiApachekafka, SiDocker, SiPostgresql } from 'react-icons/si';
 import type { PaletteItem as PaletteItemType } from '../../types/palette';
 import type { NodeType } from '../../types/nodes';
@@ -8,7 +9,7 @@ const ICONS: Record<NodeType, React.ReactNode> = {
   text:         <MdTitle size={16} />,
   rectangle:    <BsSquare size={13} />,
   circle:       <BsCircle size={13} />,
-  triangle:     <BsTriangle size={13} />,
+
   browser:      <MdOpenInBrowser size={16} />,
   ios:          <MdPhoneIphone size={16} />,
   android:      <MdAndroid size={16} />,
@@ -17,6 +18,7 @@ const ICONS: Record<NodeType, React.ReactNode> = {
   vr:           <MdVrpano size={16} />,
   dns:          <MdPublic size={16} />,
   cloudflare:   <SiCloudflare size={14} />,
+  subdomain:    <Route size={14} />,
   cdn:          <MdWifi size={16} />,
   loadbalancer: <MdHub size={16} />,
   firewall:     <MdSecurity size={16} />,
@@ -27,6 +29,8 @@ const ICONS: Record<NodeType, React.ReactNode> = {
   cache:        <SiRedis size={14} />,
   storage:      <SiAmazons3 size={14} />,
   messagequeue: <SiApachekafka size={14} />,
+  endpoint:     <Braces size={14} />,
+  line:         <Minus size={14} />,
 };
 
 interface Props {

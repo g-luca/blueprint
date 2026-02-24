@@ -7,14 +7,14 @@ import {
 } from '@xyflow/react';
 import type { AppEdge, FlowEdgeData } from '../types/edges';
 import { EDGE_COLOR_VALUES } from '../types/edges';
-import { computeEffectiveTps } from '../utils/graphTps';
+import { computeEffectiveRps, BROADCAST_TYPES } from '../utils/graphRps';
 
-// Compute dot parameters from k-TPS (1 = 1k TPS = 1 dot/s)
+// Compute dot parameters from k-RPS (1 = 1k RPS = 1 dot/s)
 // TRAVEL_DUR is how long one dot takes to cross an edge (seconds).
 const TRAVEL_DUR = 1.5;
 
-function dotsFromTps(tps: number): { dur: number; begins: number[] } {
-  const dotsPerSecond = Math.max(tps, 0.01);
+function dotsFromRps(rps: number): { dur: number; begins: number[] } {
+  const dotsPerSecond = Math.max(rps, 0.01);
   const interval = 1 / dotsPerSecond;
   const numDots = Math.min(10, Math.max(1, Math.ceil(TRAVEL_DUR / interval)));
   const dur = numDots * interval;
@@ -104,19 +104,29 @@ export function AnimatedFlowEdge({
   const routing   = edgeData.routing     ?? 'smoothstep';
   const showArrow = edgeData.arrowhead   ?? true;
 
-  // Effective TPS + stagger info for this edge
-  const { isActive, sourceTps, edgeIndex, numOutgoing, lbPolicy } = useStore((s) => {
-    const tpsMap = computeEffectiveTps(s.nodes, s.edges);
-    const sNodeTps = tpsMap.get(source);
-    if (sNodeTps === undefined) return { isActive: false, sourceTps: 1, edgeIndex: 0, numOutgoing: 1, lbPolicy: 'round-robin' };
+  // Effective RPS + stagger info for this edge
+  const { isActive, sourceRps, edgeIndex, numOutgoing, lbPolicy, isBroadcast } = useStore((s) => {
+    const rpsMap = computeEffectiveRps(s.nodes, s.edges);
+    const sNodeRps = rpsMap.get(source);
+    if (sNodeRps === undefined) return { isActive: false, sourceRps: 1, edgeIndex: 0, numOutgoing: 1, lbPolicy: 'round-robin' };
 
-    const activeSet = new Set(tpsMap.keys());
+    const activeSet = new Set(rpsMap.keys());
     const outgoing  = s.edges.filter((e) => e.source === source && activeSet.has(e.target));
-    const idx       = outgoing.findIndex((e) => e.id === id);
-    const sourceNode = s.nodes.find((n) => n.id === source);
-    const policy     = (sourceNode?.data?.lbPolicy as string | undefined) ?? 'round-robin';
+    // Deduplicate by target: multiple edges to the same node (stale replica handles) count as one connection.
+    const uniqueTargets = [...new Set(outgoing.map((e) => e.target))];
+    const thisTarget    = outgoing.find((e) => e.id === id)?.target ?? '';
+    const idx           = uniqueTargets.indexOf(thisTarget);
+    const sourceNode  = s.nodes.find((n) => n.id === source);
+    const policy      = (sourceNode?.data?.lbPolicy as string | undefined) ?? 'round-robin';
+    const isBroadcast = BROADCAST_TYPES.has(sourceNode?.type ?? '');
 
-    return { isActive: true, sourceTps: sNodeTps, edgeIndex: Math.max(0, idx), numOutgoing: Math.max(1, outgoing.length), lbPolicy: policy };
+    // Endpoint targets are observers and don't count toward the split denominator.
+    const isEndpointTarget = s.nodes.find((n) => n.id === thisTarget)?.type === 'endpoint';
+    const regularTargets = isEndpointTarget
+      ? uniqueTargets
+      : uniqueTargets.filter((t) => s.nodes.find((n) => n.id === t)?.type !== 'endpoint');
+
+    return { isActive: true, sourceRps: sNodeRps, edgeIndex: Math.max(0, idx), numOutgoing: Math.max(1, isEndpointTarget ? 1 : regularTargets.length), lbPolicy: policy, isBroadcast };
   });
 
   // Resolved values
@@ -160,10 +170,11 @@ export function AnimatedFlowEdge({
 
       {/* Animated dots — staggered by LB policy */}
       {isActive && (() => {
-        const edgeTps     = sourceTps / numOutgoing;
-        const { dur, begins } = dotsFromTps(edgeTps);
-        const slot        = staggerSlot(lbPolicy, edgeIndex, numOutgoing, id);
-        const phaseOffset = slot / Math.max(sourceTps, 0.01);
+        // Broadcast nodes send full RPS on every edge; others split evenly.
+        const edgeRps     = isBroadcast ? sourceRps : sourceRps / numOutgoing;
+        const { dur, begins } = dotsFromRps(edgeRps);
+        const slot        = isBroadcast ? 0 : staggerSlot(lbPolicy, edgeIndex, numOutgoing, id);
+        const phaseOffset = isBroadcast ? 0 : slot / Math.max(sourceRps, 0.01);
         return begins.map((delay, i) => (
           <circle key={i} r="3" fill={dotColor} opacity="0.9">
             <animateMotion

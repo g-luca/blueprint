@@ -5,7 +5,7 @@ export const NODE_DIMENSIONS: Record<NodeType, { width: number; height: number }
   text:         { width: 160, height: 40  },
   rectangle:    { width: 140, height: 100 },
   circle:       { width: 80,  height: 80  },
-  triangle:     { width: 100, height: 80  },
+
   browser:      { width: 120, height: 40  },
   ios:          { width: 100, height: 40  },
   android:      { width: 120, height: 40  },
@@ -13,7 +13,7 @@ export const NODE_DIMENSIONS: Record<NodeType, { width: number; height: number }
   watch:        { width: 100, height: 40  },
   vr:           { width: 100, height: 40  },
   dns:          { width: 100, height: 40  },
-  cloudflare:   { width: 120, height: 40  },
+  cloudflare:   { width: 180, height: 80  },
   cdn:          { width: 100, height: 40  },
   loadbalancer: { width: 160, height: 60  },
   firewall:     { width: 120, height: 40  },
@@ -24,18 +24,22 @@ export const NODE_DIMENSIONS: Record<NodeType, { width: number; height: number }
   cache:        { width: 100, height: 40  },
   storage:      { width: 120, height: 40  },
   messagequeue: { width: 140, height: 40  },
+  subdomain:    { width: 180, height: 80  },
+  endpoint:     { width: 220, height: 80  },
+  line:         { width: 160, height: 20  },
 };
 
 /** Per-type data overrides applied when a node is first dropped onto the canvas. */
 export const NODE_DEFAULT_DATA: Partial<Record<NodeType, Partial<BaseNodeData>>> = {
-  cloudflare: { tps: 3 },
+  cloudflare: { rps: 3 },
+  endpoint:   { protocol: 'REST', method: 'GET', responses: [] },
 };
 
 export const NODE_DEFAULT_LABELS: Record<NodeType, string> = {
   text:         'Annotation',
   rectangle:    'Rectangle',
   circle:       'Circle',
-  triangle:     'Triangle',
+
   browser:      'Browser',
   ios:          'iOS',
   android:      'Android',
@@ -54,4 +58,7 @@ export const NODE_DEFAULT_LABELS: Record<NodeType, string> = {
   cache:        'Redis',
   storage:      'S3 Storage',
   messagequeue: 'Message Queue',
+  subdomain:    '',
+  endpoint:     '',
+  line:         '',
 };

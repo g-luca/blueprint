@@ -1,28 +1,58 @@
 import type { AppNode } from '../types/nodes';
 import type { AppEdge } from '../types/edges';
 
-const STORAGE_KEY = 'blueprint-canvas-v1';
+const LEGACY_KEY = 'blueprint-canvas-v1';
+const FILES_KEY  = 'blueprint-files-v1';
 
-interface CanvasSnapshot {
+export interface SavedFile {
+  id: string;
+  name: string;
+  updatedAt: number;
   nodes: AppNode[];
   edges: AppEdge[];
 }
 
-export function saveToLocalStorage(nodes: AppNode[], edges: AppEdge[]): void {
+// ─── Legacy (startup only) ────────────────────────────────────────────────────
+
+export function loadFromLocalStorage(): { nodes: AppNode[]; edges: AppEdge[] } | null {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ nodes, edges }));
-  } catch (e) {
-    console.error('Failed to save canvas:', e);
+    const raw = localStorage.getItem(LEGACY_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as { nodes: AppNode[]; edges: AppEdge[] };
+  } catch {
+    return null;
   }
 }
 
-export function loadFromLocalStorage(): CanvasSnapshot | null {
+// ─── Multi-file ────────────────────────────────────────────────────────────────
+
+export function getAllFiles(): SavedFile[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as CanvasSnapshot;
+    const raw = localStorage.getItem(FILES_KEY);
+    if (!raw) return [];
+    return JSON.parse(raw) as SavedFile[];
+  } catch {
+    return [];
+  }
+}
+
+export function upsertFile(file: SavedFile): void {
+  try {
+    const files = getAllFiles();
+    const idx = files.findIndex((f) => f.id === file.id);
+    if (idx >= 0) files[idx] = file;
+    else files.unshift(file);
+    localStorage.setItem(FILES_KEY, JSON.stringify(files));
   } catch (e) {
-    console.error('Failed to load canvas:', e);
-    return null;
+    console.error('Failed to save file:', e);
+  }
+}
+
+export function removeFile(id: string): void {
+  try {
+    const files = getAllFiles().filter((f) => f.id !== id);
+    localStorage.setItem(FILES_KEY, JSON.stringify(files));
+  } catch (e) {
+    console.error('Failed to delete file:', e);
   }
 }
