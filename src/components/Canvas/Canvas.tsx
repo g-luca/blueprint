@@ -19,6 +19,8 @@ import { useThemeStore } from '../../store/useThemeStore';
 import { EdgePanel } from '../../edges/EdgePanel';
 import { NodePanel, LinePanel } from '../../nodes/NodePanel';
 import { EndpointPanel } from '../../nodes/EndpointPanel';
+import { ApiSpecificationPanel } from '../../nodes/ApiSpecificationPanel';
+import { ApiServicePanel } from '../../nodes/ApiServicePanel';
 import type { FlowEdgeData } from '../../types/edges';
 import type { BaseNodeData } from '../../types/nodes';
 
@@ -30,6 +32,20 @@ function SelectedNodePanel() {
     return (
       <div className="nodrag nopan" style={{ position: 'absolute', top: 16, right: 16, zIndex: 1000, pointerEvents: 'all' }}>
         <EndpointPanel id={selectedNode.id} data={selectedNode.data as BaseNodeData} />
+      </div>
+    );
+  }
+  if (selectedNode.type === 'apispecification') {
+    return (
+      <div className="nodrag nopan" style={{ position: 'absolute', top: 16, right: 16, zIndex: 1000, pointerEvents: 'all' }}>
+        <ApiSpecificationPanel id={selectedNode.id} data={selectedNode.data as BaseNodeData} />
+      </div>
+    );
+  }
+  if (selectedNode.type === 'apiservice') {
+    return (
+      <div className="nodrag nopan" style={{ position: 'absolute', top: 16, right: 16, zIndex: 1000, pointerEvents: 'all' }}>
+        <ApiServicePanel id={selectedNode.id} data={selectedNode.data as BaseNodeData} />
       </div>
     );
   }

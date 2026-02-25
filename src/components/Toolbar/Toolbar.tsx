@@ -2,6 +2,7 @@ import { useState, useCallback, useRef, useEffect, type ChangeEvent } from 'reac
 import { useFlowStore } from '../../store/useFlowStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useExport } from '../../hooks/useExport';
+import { ApiReferenceModal } from '../ApiReferenceModal';
 import type { ThemeName } from '../../themes';
 import type { SavedFile } from '../../utils/persistence';
 
@@ -332,9 +333,10 @@ export function Toolbar() {
     nodes, edges, importFromJson,
   } = useFlowStore();
   const { theme, setTheme } = useThemeStore();
-  const { exportPng, exportJson } = useExport();
+  const { exportPng, exportJson, exportOpenApi } = useExport();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [saveAsMode, setSaveAsMode] = useState(false);
+  const [showApiRef, setShowApiRef] = useState(false);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const canUndo = past.length > 0;
@@ -347,6 +349,10 @@ export function Toolbar() {
   const handleExportJson = useCallback(() => {
     exportJson(nodes, edges, currentFileName ?? undefined);
   }, [exportJson, nodes, edges, currentFileName]);
+
+  const handleExportOpenApi = useCallback(() => {
+    exportOpenApi(nodes, edges, currentFileName ?? undefined);
+  }, [exportOpenApi, nodes, edges, currentFileName]);
 
   const handleImportJson = useCallback(() => {
     importInputRef.current?.click();
@@ -398,9 +404,13 @@ export function Toolbar() {
     { label: 'Save As…',     action: handleSaveAs },
     { label: 'Open Recent',  submenu: recentSubmenu },
     { separator: true },
-    { label: 'Export PNG',   shortcut: '⌘E', action: exportPng },
-    { label: 'Export JSON',  action: handleExportJson },
-    { label: 'Import JSON',  action: handleImportJson },
+    { label: 'Export PNG',     shortcut: '⌘E', action: exportPng },
+    { label: 'Export JSON',    action: handleExportJson },
+    { label: 'Export OpenAPI', action: handleExportOpenApi },
+    { separator: true },
+    { label: 'View API Reference', action: () => setShowApiRef(true) },
+    { separator: true },
+    { label: 'Import JSON',   action: handleImportJson },
     { separator: true },
     { label: 'Clear Canvas', action: handleClear, danger: true },
   ];
@@ -473,6 +483,15 @@ export function Toolbar() {
         style={{ display: 'none' }}
         onChange={handleImportFileChange}
       />
+
+      {/* API Reference modal */}
+      {showApiRef && (
+        <ApiReferenceModal
+          onClose={() => setShowApiRef(false)}
+          nodes={nodes}
+          edges={edges}
+        />
+      )}
     </>
   );
 }

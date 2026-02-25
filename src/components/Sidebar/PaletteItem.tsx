@@ -1,5 +1,5 @@
 import { MdOpenInBrowser, MdPhoneIphone, MdAndroid, MdTv, MdWatch, MdVrpano, MdPublic, MdWifi, MdHub, MdSecurity, MdStorage, MdRouter, MdTitle } from 'react-icons/md';
-import { Route, Braces, Minus } from 'lucide-react';
+import { Route, Braces, FileJson2, FolderOpen, Minus } from 'lucide-react';
 import { BsSquare, BsCircle } from 'react-icons/bs';
 import { SiCloudflare, SiRedis, SiAmazons3, SiApachekafka, SiDocker, SiPostgresql } from 'react-icons/si';
 import type { PaletteItem as PaletteItemType } from '../../types/palette';
@@ -29,8 +29,10 @@ const ICONS: Record<NodeType, React.ReactNode> = {
   cache:        <SiRedis size={14} />,
   storage:      <SiAmazons3 size={14} />,
   messagequeue: <SiApachekafka size={14} />,
-  endpoint:     <Braces size={14} />,
-  line:         <Minus size={14} />,
+  endpoint:       <Braces size={14} />,
+  apispecification: <FileJson2 size={14} />,
+  apiservice:     <FolderOpen size={14} />,
+  line:           <Minus size={14} />,
 };
 
 interface Props {

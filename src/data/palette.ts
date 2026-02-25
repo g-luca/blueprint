@@ -49,7 +49,9 @@ export const PALETTE_CATEGORIES: PaletteCategory[] = [
     id: 'api',
     label: 'API',
     items: [
-      { type: 'endpoint', label: 'Endpoint', description: 'REST / gRPC / WS endpoint' },
+      { type: 'apispecification', label: 'Specification', description: 'OpenAPI spec root (title, version, server)' },
+      { type: 'apiservice',     label: 'Service',              description: 'Service tag group with path prefix' },
+      { type: 'endpoint',       label: 'Endpoint',             description: 'REST / gRPC / WS endpoint' },
     ],
   },
   {

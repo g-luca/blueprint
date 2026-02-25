@@ -25,14 +25,18 @@ export const NODE_DIMENSIONS: Record<NodeType, { width: number; height: number }
   storage:      { width: 120, height: 40  },
   messagequeue: { width: 140, height: 40  },
   subdomain:    { width: 180, height: 80  },
-  endpoint:     { width: 220, height: 80  },
-  line:         { width: 160, height: 20  },
+  endpoint:       { width: 220, height: 80  },
+  apispecification: { width: 200, height: 80  },
+  apiservice:     { width: 200, height: 80  },
+  line:           { width: 160, height: 20  },
 };
 
 /** Per-type data overrides applied when a node is first dropped onto the canvas. */
 export const NODE_DEFAULT_DATA: Partial<Record<NodeType, Partial<BaseNodeData>>> = {
   cloudflare: { rps: 3 },
-  endpoint:   { protocol: 'REST', method: 'GET', responses: [] },
+  endpoint:       { protocol: 'REST', method: 'GET', requestFields: [], responses: [], headers: [], security: [] },
+  apispecification: { apiVersion: '1.0.0', serverUrl: 'https://api.example.com', securitySchemes: [] },
+  apiservice:     { pathPrefix: '', description: '' },
 };
 
 export const NODE_DEFAULT_LABELS: Record<NodeType, string> = {
@@ -58,7 +62,9 @@ export const NODE_DEFAULT_LABELS: Record<NodeType, string> = {
   cache:        'Redis',
   storage:      'S3 Storage',
   messagequeue: 'Message Queue',
-  subdomain:    '',
-  endpoint:     '',
-  line:         '',
+  subdomain:      '',
+  endpoint:       '',
+  apispecification: 'My API',
+  apiservice:     'Service',
+  line:           '',
 };

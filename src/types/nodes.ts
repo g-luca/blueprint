@@ -25,14 +25,35 @@ export type NodeType =
   | 'storage'
   | 'messagequeue'
   | 'endpoint'
+  | 'apispecification'
+  | 'apiservice'
   | 'line';
 
 export type HttpMethod  = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 export type ApiProtocol = 'REST' | 'gRPC' | 'gRPC-bidi' | 'WS' | 'RPC';
 
+export type SchemaType = 'string' | 'number' | 'integer' | 'boolean' | 'array' | 'object';
+
+export interface ApiField {
+  name: string;
+  type: SchemaType;
+  required: boolean;
+}
+
 export interface ApiResponse {
   code: string;
-  types?: string[];
+  description: string;
+  fields: ApiField[];
+}
+
+export type SecuritySchemeType = 'bearer' | 'apiKey' | 'basic';
+export type ApiKeyLocation = 'header' | 'query' | 'cookie';
+
+export interface SecurityScheme {
+  name: string;
+  type: SecuritySchemeType;
+  apiKeyName?: string;      // apiKey only — the parameter name (e.g. "X-API-Key")
+  apiKeyIn?: ApiKeyLocation; // apiKey only
 }
 
 export type FontFamily    = 'sans' | 'serif' | 'mono';
