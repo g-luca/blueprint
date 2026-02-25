@@ -76,7 +76,9 @@ EdgeProps<AppEdge>           // AppEdge = Edge<FlowEdgeData, 'flow' | 'labeled'>
 | `src/nodes/NodePanel.tsx` | Right-side inspector panel: font, size, align, text toggle, animation, throughput |
 | `src/edges/AnimatedFlowEdge.tsx` | Animated dots via SVG `<animateMotion>`, RPS-driven |
 | `src/utils/graphTps.ts` | `isEmitter`, `computeEffectiveTps`, `CLIENT_TYPES`, `BROADCAST_TYPES` |
+| `src/utils/persistence.ts` | localStorage helpers + export format, `SCHEMA_VERSION`, `createExport`, `parseExport`, `MIGRATIONS` |
 | `src/hooks/useDrop.ts` | Bridges sidebar palette to canvas drop |
+| `src/hooks/useExport.ts` | `exportPng` (html-to-image) + `exportJson` (versioned `.blueprint.json` download) |
 | `src/data/palette.ts` | Palette categories & items |
 | `src/utils/nodeDefaults.ts` | `NODE_DIMENSIONS`, `NODE_DEFAULT_LABELS`, `NODE_DEFAULT_DATA` per type |
 | `src/components/Canvas/Canvas.tsx` | ReactFlow wrapper, right-click drag selection, undo snapshot on drag |
@@ -119,6 +121,7 @@ selectAll(), copySelected(), pasteClipboard()
 saveSnapshot()                         // call BEFORE any undoable mutation
 undo(), redo()
 saveToStorage(), loadFromStorage(), clearCanvas()
+importFromJson(file: File)             // parse + load a .blueprint.json; resets undo history, sets currentFileId=null
 ```
 
 localStorage key: `"blueprint-canvas-v1"`
@@ -159,9 +162,64 @@ interface BaseNodeProps extends NodeProps<AppNode> {
 
 ## Toolbar Menus
 
-- **File**: Save, Load, Export PNG, Clear Canvas
+- **File**: New Canvas, Save (⌘S), Save As…, Open Recent, Export PNG (⌘E), Export JSON, Import JSON, Clear Canvas
 - **Edit**: Undo (⌘Z), Redo (⌘Y) — grayed out when stack is empty
 - **Window**: Theme selector (Blueprint/Dark/Light), Show Grid toggle
+
+## JSON Export Format & Schema Versioning
+
+Export/import lives in `src/utils/persistence.ts`. The wire format is:
+
+```ts
+interface BlueprintExport {
+  version: number;          // always equals SCHEMA_VERSION at export time
+  metadata: {
+    name: string;
+    createdAt: number;      // Unix ms timestamp
+  };
+  nodes: AppNode[];
+  edges: AppEdge[];
+}
+```
+
+File extension: `.blueprint.json`. Downloads are triggered via `URL.createObjectURL` in `useExport.ts`.
+
+### Rules for schema changes
+
+**Non-breaking changes — no version bump needed:**
+- Adding optional fields to `BaseNodeData` or `FlowEdgeData` (old files simply omit them; defaults apply on load)
+- Adding new node/edge types (old files without them parse fine)
+
+**Breaking changes — bump `SCHEMA_VERSION` and add a migration:**
+- Renaming or removing a field that existing files rely on
+- Changing the shape of an existing field (e.g. `domains: string` → `domains: string[]`)
+- Restructuring the top-level export object
+
+### How to add a migration
+
+1. Increment `SCHEMA_VERSION` in `persistence.ts`
+2. Add a migration function keyed by the **old** version number:
+
+```ts
+const MIGRATIONS: Record<number, (data: any) => any> = {
+  // Runs when loading a v1 file → upgrades it to v2
+  1: (data) => ({
+    ...data,
+    nodes: data.nodes.map((n: AppNode) => ({
+      ...n,
+      data: { newField: 'default', ...n.data },
+    })),
+  }),
+};
+```
+
+`parseExport` chains migrations automatically: a v1 file being loaded at SCHEMA_VERSION 3 runs migration 1, then 2, then 2→3.
+
+### Import behaviour
+
+- `parseExport` returns `null` on invalid input (non-object, missing `nodes`/`edges`, unrecognised shape) — `importFromJson` toasts an error and bails
+- A plain `{ nodes, edges }` dump with no `version` field is accepted as a legacy format (name defaults to `"Imported"`)
+- After import, `currentFileId` is `null` — the canvas is unsaved until the user explicitly saves it
 
 ## Important Notes
 

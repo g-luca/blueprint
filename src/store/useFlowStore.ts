@@ -9,7 +9,7 @@ import {
 } from '@xyflow/react';
 import type { AppNode, BaseNodeData } from '../types/nodes';
 import type { AppEdge, FlowEdgeData } from '../types/edges';
-import { loadFromLocalStorage, getAllFiles, upsertFile, removeFile, type SavedFile } from '../utils/persistence';
+import { loadFromLocalStorage, getAllFiles, upsertFile, removeFile, parseExport, type SavedFile } from '../utils/persistence';
 import { createId } from '../utils/id';
 
 type Snapshot = { nodes: AppNode[]; edges: AppEdge[] };
@@ -57,6 +57,7 @@ interface FlowState {
   setNeedsNamePrompt: (v: boolean) => void;
   loadFromStorage: () => void;
   clearCanvas: () => void;
+  importFromJson: (file: File) => Promise<void>;
 }
 
 const _saved = loadFromLocalStorage();
@@ -289,5 +290,29 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   clearCanvas: () => {
     get().saveSnapshot();
     set({ nodes: [], edges: [] });
+  },
+
+  importFromJson: async (file: File) => {
+    try {
+      const text = await file.text();
+      const raw = JSON.parse(text) as unknown;
+      const result = parseExport(raw);
+      if (!result) {
+        get().showToast('Invalid or incompatible file');
+        return;
+      }
+      get().saveSnapshot();
+      set({
+        nodes: result.nodes,
+        edges: result.edges,
+        past: [],
+        future: [],
+        currentFileId: null,
+        currentFileName: result.name,
+      });
+      get().showToast(`Imported "${result.name}"`);
+    } catch {
+      get().showToast('Failed to read file');
+    }
   },
 }));
