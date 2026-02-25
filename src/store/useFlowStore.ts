@@ -9,7 +9,7 @@ import {
 } from '@xyflow/react';
 import type { AppNode, BaseNodeData } from '../types/nodes';
 import type { AppEdge, FlowEdgeData } from '../types/edges';
-import { loadFromLocalStorage, getAllFiles, upsertFile, removeFile, parseExport, type SavedFile } from '../utils/persistence';
+import { loadFromLocalStorage, getAllFiles, upsertFile, removeFile, parseExport, getLastFileId, setLastFileId, type SavedFile } from '../utils/persistence';
 import { createId } from '../utils/id';
 
 type Snapshot = { nodes: AppNode[]; edges: AppEdge[] };
@@ -60,17 +60,35 @@ interface FlowState {
   importFromJson: (file: File) => Promise<void>;
 }
 
-const _saved = loadFromLocalStorage();
+// ── Startup: try legacy key, then last-saved file, otherwise empty canvas ────
+const _legacy = loadFromLocalStorage();
+let _initNodes: AppNode[]     = _legacy?.nodes ?? [];
+let _initEdges: AppEdge[]     = _legacy?.edges ?? [];
+let _initFileId: string | null   = null;
+let _initFileName: string | null = null;
+
+if (!_legacy) {
+  const lastId = getLastFileId();
+  if (lastId) {
+    const file = getAllFiles().find((f) => f.id === lastId);
+    if (file) {
+      _initNodes    = file.nodes;
+      _initEdges    = file.edges;
+      _initFileId   = file.id;
+      _initFileName = file.name;
+    }
+  }
+}
 
 export const useFlowStore = create<FlowState>((set, get) => ({
-  nodes: _saved?.nodes ?? [],
-  edges: _saved?.edges ?? [],
+  nodes: _initNodes,
+  edges: _initEdges,
   past: [],
   future: [],
   clipboard: null,
   showGrid: true,
-  currentFileId: null,
-  currentFileName: null,
+  currentFileId: _initFileId,
+  currentFileName: _initFileName,
   files: getAllFiles(),
   needsNamePrompt: false,
   toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
@@ -243,6 +261,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     const id = currentFileId ?? createId('file');
     const file: SavedFile = { id, name, updatedAt: Date.now(), nodes, edges };
     upsertFile(file);
+    setLastFileId(id);
     set({ currentFileId: id, currentFileName: name, files: getAllFiles(), needsNamePrompt: false });
     showToast(`Saved "${name}"`);
   },
@@ -252,6 +271,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     const id = createId('file');
     const file: SavedFile = { id, name, updatedAt: Date.now(), nodes, edges };
     upsertFile(file);
+    setLastFileId(id);
     set({ currentFileId: id, currentFileName: name, files: getAllFiles(), needsNamePrompt: false });
     showToast(`Saved "${name}"`);
   },
@@ -259,6 +279,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   loadFile: (id: string) => {
     const file = getAllFiles().find((f) => f.id === id);
     if (!file) return;
+    setLastFileId(id);
     set({
       nodes: file.nodes,
       edges: file.edges,
@@ -280,6 +301,7 @@ export const useFlowStore = create<FlowState>((set, get) => ({
 
   newCanvas: () => {
     get().saveSnapshot();
+    setLastFileId(null);
     set({ nodes: [], edges: [], currentFileId: null, currentFileName: null, past: [], future: [] });
   },
 

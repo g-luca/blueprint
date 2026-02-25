@@ -1,8 +1,9 @@
 import type { AppNode } from '../types/nodes';
 import type { AppEdge } from '../types/edges';
 
-const LEGACY_KEY = 'blueprint-canvas-v1';
-const FILES_KEY  = 'blueprint-files-v1';
+const LEGACY_KEY    = 'blueprint-canvas-v1';
+const FILES_KEY     = 'blueprint-files-v1';
+const LAST_FILE_KEY = 'blueprint-last-file-id';
 
 // ─── Export format & versioning ───────────────────────────────────────────────
 
@@ -115,4 +116,17 @@ export function removeFile(id: string): void {
   } catch (e) {
     console.error('Failed to delete file:', e);
   }
+}
+
+// ─── Last-opened file ─────────────────────────────────────────────────────────
+
+export function getLastFileId(): string | null {
+  try { return localStorage.getItem(LAST_FILE_KEY); } catch { return null; }
+}
+
+export function setLastFileId(id: string | null): void {
+  try {
+    if (id === null) localStorage.removeItem(LAST_FILE_KEY);
+    else localStorage.setItem(LAST_FILE_KEY, id);
+  } catch { /* ignore */ }
 }
