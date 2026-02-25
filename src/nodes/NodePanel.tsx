@@ -1,7 +1,7 @@
 import { useCallback, type CSSProperties } from 'react';
 import { useStore } from '@xyflow/react';
 import { useFlowStore } from '../store/useFlowStore';
-import type { BaseNodeData, FontFamily, TextAlign } from '../types/nodes';
+import type { BaseNodeData, FontFamily, TextAlign, VerticalAlign } from '../types/nodes';
 import { isEmitter, computeEffectiveRps, CLIENT_TYPES } from '../utils/graphRps';
 
 const RPS_STEPS = [0.1, 0.5, 1, 2, 5, 10, 20, 50, 100];
@@ -169,6 +169,52 @@ export function NodePanel({ id, data }: Props) {
           </Btn>
         ))}
       </Section>
+
+      {/* Vertical alignment — text nodes only */}
+      {nodeType === 'text' && (() => {
+        const va = (data.verticalAlign as VerticalAlign | undefined) ?? 'top';
+        const VALIGNS: { value: VerticalAlign; icon: React.ReactNode; label: string }[] = [
+          {
+            value: 'top', label: 'Top',
+            icon: (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <rect x="0" y="1" width="14" height="1.5" rx="0.75" fill="currentColor"/>
+                <rect x="2" y="4.5" width="10" height="1.5" rx="0.75" fill="currentColor" opacity="0.6"/>
+                <rect x="2" y="8" width="10" height="1.5" rx="0.75" fill="currentColor" opacity="0.6"/>
+              </svg>
+            ),
+          },
+          {
+            value: 'middle', label: 'Middle',
+            icon: (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <rect x="2" y="1" width="10" height="1.5" rx="0.75" fill="currentColor" opacity="0.6"/>
+                <rect x="0" y="4.5" width="14" height="1.5" rx="0.75" fill="currentColor"/>
+                <rect x="2" y="8" width="10" height="1.5" rx="0.75" fill="currentColor" opacity="0.6"/>
+              </svg>
+            ),
+          },
+          {
+            value: 'bottom', label: 'Bottom',
+            icon: (
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <rect x="2" y="1" width="10" height="1.5" rx="0.75" fill="currentColor" opacity="0.6"/>
+                <rect x="2" y="4.5" width="10" height="1.5" rx="0.75" fill="currentColor" opacity="0.6"/>
+                <rect x="0" y="8" width="14" height="1.5" rx="0.75" fill="currentColor"/>
+              </svg>
+            ),
+          },
+        ];
+        return (
+          <Section label="Vertical">
+            {VALIGNS.map(({ value, icon, label }) => (
+              <Btn key={value} active={va === value} onClick={() => upd({ verticalAlign: value })} title={label}>
+                {icon}
+              </Btn>
+            ))}
+          </Section>
+        );
+      })()}
 
       {/* Text body toggle */}
       <Section label="Text">

@@ -35,9 +35,10 @@ export interface ApiResponse {
   types?: string[];
 }
 
-export type FontFamily = 'sans' | 'serif' | 'mono';
-export type TextAlign  = 'left' | 'center' | 'right';
-export type LbPolicy   = 'round-robin' | 'random' | 'least-conn' | 'ip-hash';
+export type FontFamily    = 'sans' | 'serif' | 'mono';
+export type TextAlign     = 'left' | 'center' | 'right';
+export type VerticalAlign = 'top' | 'middle' | 'bottom';
+export type LbPolicy      = 'round-robin' | 'random' | 'least-conn' | 'ip-hash';
 
 export interface BaseNodeData {
   label: string;
@@ -45,6 +46,7 @@ export interface BaseNodeData {
   fontSize?: number;
   fontFamily?: FontFamily;
   textAlign?: TextAlign;
+  verticalAlign?: VerticalAlign;
   /** Whether this node emits animated dots. Defaults to true for client types, false otherwise. */
   animated?: boolean;
   /** Throughput in k-RPS (1 = 1 000 RPS = 1 dot/s). Only meaningful when animated is true. */
