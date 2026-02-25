@@ -75,7 +75,7 @@ export function NodePanel({ id, data }: Props) {
   // Compute effective RPS via graph traversal (aggregates upstream contributions)
   const { nodeIsEmitter, isClientType, computedRps } = useStore((s) => {
     const node = s.nodes.find((n) => n.id === id);
-    const emitter    = node ? isEmitter({ type: node.type, data: node.data as Record<string, unknown> }) : false;
+    const emitter    = node ? isEmitter({ id: node.id, type: node.type, data: node.data as Record<string, unknown> }) : false;
     const clientType = CLIENT_TYPES.has(node?.type ?? '');
     const rpsMap     = computeEffectiveRps(s.nodes, s.edges);
     return { nodeIsEmitter: emitter, isClientType: clientType, computedRps: rpsMap.get(id) ?? 0 };

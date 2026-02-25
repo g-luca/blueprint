@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, type ChangeEvent } from 'react';
 import { useFlowStore } from '../../store/useFlowStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useExport } from '../../hooks/useExport';
@@ -329,11 +329,13 @@ export function Toolbar() {
     clearCanvas, showGrid, toggleGrid,
     undo, redo, past, future,
     currentFileName, currentFileId, files,
+    nodes, edges, importFromJson,
   } = useFlowStore();
   const { theme, setTheme } = useThemeStore();
-  const { exportPng } = useExport();
+  const { exportPng, exportJson } = useExport();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [saveAsMode, setSaveAsMode] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const canUndo = past.length > 0;
   const canRedo = future.length > 0;
@@ -341,6 +343,21 @@ export function Toolbar() {
   const handleClear = useCallback(() => {
     if (confirm('Clear the canvas? This cannot be undone.')) clearCanvas();
   }, [clearCanvas]);
+
+  const handleExportJson = useCallback(() => {
+    exportJson(nodes, edges, currentFileName ?? undefined);
+  }, [exportJson, nodes, edges, currentFileName]);
+
+  const handleImportJson = useCallback(() => {
+    importInputRef.current?.click();
+  }, []);
+
+  const handleImportFileChange = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) importFromJson(file);
+    // Reset so the same file can be re-imported if needed
+    e.target.value = '';
+  }, [importFromJson]);
 
   const handleSaveAs = useCallback(() => {
     setSaveAsMode(true);
@@ -382,6 +399,8 @@ export function Toolbar() {
     { label: 'Open Recent',  submenu: recentSubmenu },
     { separator: true },
     { label: 'Export PNG',   shortcut: '⌘E', action: exportPng },
+    { label: 'Export JSON',  action: handleExportJson },
+    { label: 'Import JSON',  action: handleImportJson },
     { separator: true },
     { label: 'Clear Canvas', action: handleClear, danger: true },
   ];
@@ -446,6 +465,14 @@ export function Toolbar() {
         />
       )}
 
+      {/* Hidden file input for JSON import */}
+      <input
+        ref={importInputRef}
+        type="file"
+        accept=".json,.blueprint.json"
+        style={{ display: 'none' }}
+        onChange={handleImportFileChange}
+      />
     </>
   );
 }

@@ -101,7 +101,7 @@ export function Canvas() {
     const style = document.createElement('style');
     style.textContent = '.react-flow__pane, .react-flow__renderer { cursor: crosshair !important; }';
     document.head.appendChild(style);
-    return () => document.head.removeChild(style);
+    return () => { document.head.removeChild(style); };
   }, [crosshair]);
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
