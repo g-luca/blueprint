@@ -14,6 +14,8 @@ An Excalidraw-like drag-and-drop canvas for drawing software architecture diagra
 | PNG export | `html-to-image` |
 | IDs | `nanoid` |
 | CSS | Tailwind v4 — uses `@import "tailwindcss"` (no config file) |
+| Color picker | `react-colorful` |
+| OpenAPI viewer | `@scalar/api-reference-react` + `@scalar/openapi-types` |
 
 ## @xyflow/react v12 Patterns
 
@@ -33,15 +35,15 @@ EdgeProps<AppEdge>           // AppEdge = Edge<FlowEdgeData, 'flow' | 'labeled'>
 
 `useReactFlow()` and `useStore()` are available anywhere inside `<ReactFlowProvider>` (mounted at root in `main.tsx`).
 
-## Node Types (18)
+## Node Types (26)
 
 ### Shape Primitives
 | Type | Notes |
 |---|---|
 | `text` | Free-text annotation — `multilineLabel` enabled, Enter inserts newlines |
+| `line` | SVG line/divider — orientations: h/v/d1/d2; strokeStyle: solid/dotted/dashed; no BaseNode |
 | `rectangle` | Plain rectangle, no icon |
 | `circle` | `borderRadius: 50%` |
-| `triangle` | `clipPath` polygon |
 
 ### Infrastructure Nodes
 | Type | Accent | Special behaviour |
@@ -66,6 +68,13 @@ EdgeProps<AppEdge>           // AppEdge = Edge<FlowEdgeData, 'flow' | 'labeled'>
 | `storage` | amber | Forwarder |
 | `messagequeue` | purple | Forwarder |
 
+### API Modelling Nodes
+| Type | Notes |
+|---|---|
+| `apispecification` | Root OpenAPI spec node — title, version, serverUrl, securitySchemes in footer |
+| `apiservice` | Service tag group with `pathPrefix`; connected endpoints inherit its tag & prefix |
+| `endpoint` | REST/gRPC/WS/RPC endpoint — method, path, request fields, responses, headers, security; **observer**: receives full upstream RPS without diluting the split |
+
 ## Key Files
 
 | File | Purpose |
@@ -75,7 +84,8 @@ EdgeProps<AppEdge>           // AppEdge = Edge<FlowEdgeData, 'flow' | 'labeled'>
 | `src/nodes/BaseNode.tsx` | Shared shell: handles, label edit, font panel, text section, resize, footer slot |
 | `src/nodes/NodePanel.tsx` | Right-side inspector panel: font, size, align, text toggle, animation, throughput |
 | `src/edges/AnimatedFlowEdge.tsx` | Animated dots via SVG `<animateMotion>`, RPS-driven |
-| `src/utils/graphTps.ts` | `isEmitter`, `computeEffectiveTps`, `CLIENT_TYPES`, `BROADCAST_TYPES` |
+| `src/utils/graphRps.ts` | `isEmitter`, `computeEffectiveRps`, `CLIENT_TYPES`, `BROADCAST_TYPES` |
+| `src/utils/openapi.ts` | `generateOpenApiSpec(nodes, edges)` → OpenAPI 3.1 spec from canvas nodes |
 | `src/utils/persistence.ts` | localStorage helpers + export format, `SCHEMA_VERSION`, `createExport`, `parseExport`, `MIGRATIONS` |
 | `src/hooks/useDrop.ts` | Bridges sidebar palette to canvas drop |
 | `src/hooks/useExport.ts` | `exportPng` (html-to-image) + `exportJson` (versioned `.blueprint.json` download) |
@@ -101,8 +111,8 @@ EdgeProps<AppEdge>           // AppEdge = Edge<FlowEdgeData, 'flow' | 'labeled'>
 5. Create `src/nodes/YourNode.tsx` using `BaseNode` with optional `icon`, `accentColor`, `bodyStyle`, `footer`, `labelPlaceholder`, `multilineLabel`
 6. Register in `src/nodes/index.ts`
 7. Add icon to `ICONS` record in `src/components/Sidebar/PaletteItem.tsx`
-8. Add item to a category in `src/data/palette.ts`
-9. If it's a broadcast type, add to `BROADCAST_TYPES` in `src/utils/graphTps.ts`
+8. Add item to one of the 7 categories in `src/data/palette.ts` (shapes, clients, network, compute, api, data, messaging)
+9. If it's a broadcast type, add to `BROADCAST_TYPES` in `src/utils/graphRps.ts`
 
 ## Theme System
 
@@ -118,9 +128,20 @@ EdgeProps<AppEdge>           // AppEdge = Edge<FlowEdgeData, 'flow' | 'labeled'>
 ## State (Zustand — useFlowStore)
 
 ```ts
+// State
 nodes, edges
 past, future                           // undo/redo stacks (max 50)
+clipboard                              // copy/paste buffer
+showGrid: boolean
+toast: string | null
+currentFileId: string | null
+currentFileName: string | null
+files: SavedFile[]                     // all saved files (from blueprint-files-v1)
+needsNamePrompt: boolean               // triggers Save As dialog
+
+// Node/edge mutations
 onNodesChange, onEdgesChange, onConnect
+setNodes(nodes), setEdges(edges)       // remote collab updates — bypass undo stack
 addNode(node)
 updateNodeLabel(id, label)
 updateNodeData(id, patch)
@@ -129,23 +150,40 @@ removeSelectedElements()
 selectAll(), copySelected(), pasteClipboard()
 saveSnapshot()                         // call BEFORE any undoable mutation
 undo(), redo()
-saveToStorage(), loadFromStorage(), clearCanvas()
-importFromJson(file: File)             // parse + load a .blueprint.json; resets undo history, sets currentFileId=null
+
+// File management
+saveToStorage()                        // save in-place or prompt for name
+saveFile(name)                         // save/update current file
+saveAsFile(name)                       // always creates a new file
+loadFile(id)                           // load file; if file.roomId → navigate to #room/<id>
+deleteFile(id)
+newCanvas()                            // clear canvas, unset currentFileId
+setNeedsNamePrompt(v)
+loadFromStorage()                      // no-op (legacy — init handled at module load)
+clearCanvas()
+importFromJson(file: File)             // parse + load a .blueprint.json; resets undo history
+saveRoomSnapshot(roomId, name)         // silent upsert for collab auto-save (no toast)
+
+// UI helpers
+showToast(msg)                         // shows toast for 2 s
+toggleGrid()
 ```
 
-localStorage key: `"blueprint-canvas-v1"`
+localStorage keys: `"blueprint-canvas-v1"` (legacy migration), `"blueprint-files-v1"` (multi-file list), `"blueprint-last-file-id"` (last opened file)
 
 Every mutating action calls `saveSnapshot()` before applying changes. `Canvas.tsx` also calls `saveSnapshot` via `onNodeDragStart`.
 
-## Animation & TPS System (`src/utils/graphTps.ts`)
+## Animation & RPS System (`src/utils/graphRps.ts`)
 
 - `CLIENT_TYPES`: `browser | ios | android | tv | watch | vr` — emit by default
 - `BROADCAST_TYPES`: `cloudflare | cdn | dns | subdomain | firewall | apigateway` — forward full RPS to **every** outgoing edge (no split)
-- All other nodes split TPS equally across outgoing edges (load-balancer semantics)
+- All other nodes split RPS equally across outgoing edges (load-balancer semantics)
 - `isEmitter(node)`: true if `data.animated === true`, false if `data.animated === false`, else checks `CLIENT_TYPES`
-- `computeEffectiveTps(nodes, edges)`: Kahn's topological sort; emitters use own `data.tps` (default 1k); forwarders sum upstream. Emitter targets are excluded from outTargets (emitter-to-emitter edges don't propagate TPS).
-- Edge dot timing: `edgeTps = isBroadcast ? sourceTps : sourceTps / numOutgoing`; phase stagger via `staggerSlot()` for LB policies
+- `computeEffectiveRps(nodes, edges)`: Kahn's topological sort; emitters use own `data.rps` (default 1k); forwarders sum upstream. Emitter targets are excluded from outTargets (emitter-to-emitter edges don't propagate RPS).
+- **`endpoint` observer rule**: endpoint nodes receive the full source RPS without being counted in the split denominator — connecting an endpoint alongside a service doesn't dilute the service's RPS.
+- Edge dot timing: `edgeRps = isBroadcast ? sourceRps : sourceRps / numOutgoing`; phase stagger via `staggerSlot()` for LB policies
 - LB policies: `round-robin` (sequential stagger) | `random` (hash by edge ID) | `least-conn` (first half gets slot 0) | `ip-hash` (hash by target)
+- Duplicate edges between the same (source, target) pair are collapsed to one for RPS computation
 
 ## BaseNode Props
 
@@ -229,6 +267,39 @@ const MIGRATIONS: Record<number, (data: any) => any> = {
 - `parseExport` returns `null` on invalid input (non-object, missing `nodes`/`edges`, unrecognised shape) — `importFromJson` toasts an error and bails
 - A plain `{ nodes, edges }` dump with no `version` field is accepted as a legacy format (name defaults to `"Imported"`)
 - After import, `currentFileId` is `null` — the canvas is unsaved until the user explicitly saves it
+
+### Multi-file system
+
+`persistence.ts` also manages a multi-file list separate from the export format:
+
+```ts
+interface SavedFile {
+  id: string;
+  name: string;
+  updatedAt: number;   // Unix ms
+  nodes: AppNode[];
+  edges: AppEdge[];
+  roomId?: string;     // set by saveRoomSnapshot — links file to a collab room
+}
+```
+
+localStorage keys:
+- `"blueprint-files-v1"` — JSON array of `SavedFile` objects (`getAllFiles`, `upsertFile`, `removeFile`)
+- `"blueprint-last-file-id"` — ID of the last-opened file (`getLastFileId`, `setLastFileId`)
+- `"blueprint-canvas-v1"` — legacy single-canvas key (read once on startup for migration, never written)
+
+On startup `useFlowStore` reads the last-file-id, finds it in the files list, and initialises `nodes`/`edges`/`currentFileId`/`currentFileName`.
+
+## OpenAPI Generation (`src/utils/openapi.ts`)
+
+`generateOpenApiSpec(nodes, edges)` builds a full OpenAPI 3.1 spec from the canvas. It uses three node types:
+- `apispecification` — root spec (title from label, `data.apiVersion`, `data.serverUrl`, `data.securitySchemes`)
+- `apiservice` — service group (`data.pathPrefix`; label becomes the tag name)
+- `endpoint` — one operation (`data.protocol`, `data.method`, `data.requestFields`, `data.responses`, `data.headers`, `data.security`)
+
+Path construction: `apiservice.pathPrefix` + `endpoint.label` (path). Endpoints inherit the tag of their connected apiservice. Security schemes (`SecurityScheme[]`) are emitted as `components.securitySchemes`.
+
+The spec is rendered in-canvas by `@scalar/api-reference-react` (mounted in `ApiSpecificationPanel`).
 
 ## Real-time Collaboration
 
@@ -402,6 +473,7 @@ Applied to all non-101 responses: `X-Content-Type-Options`, `X-Frame-Options: DE
 ### Tests
 
 ```
+tests/setup.ts          – Mocks `cloudflare:workers` DurableObject for bun:test (preloaded via bunfig.toml)
 tests/worker/
   helpers.ts          – MockStorage, MockDOState, FakeWebSocket, FakeWebSocketPair, makeRequest
   room.test.ts        – 77 tests: HTTP endpoints, WS connection/welcome, state_update (plain +
@@ -410,21 +482,37 @@ tests/worker/
   rateLimiter.test.ts – 6 tests: window, limit, persistence
 tests/frontend/
   crypto.test.ts      – 16 tests: hashPassword, deriveEncryptionKey, encryptState/decryptState
-  graphRps.test.ts    – 16 tests: TPS propagation
+  graphRps.test.ts    – 16 tests: RPS propagation
   persistence.test.ts – 17 tests: export format, migrations, localStorage helpers
 ```
 
-Run: `bun test tests/worker/` or `bun test tests/frontend/` (uses `bun:test`, no esbuild).
+Run commands:
+```bash
+bun test tests/           # all tests
+bun test tests/worker/    # worker only
+bun test tests/frontend/  # frontend only
+bun test --coverage tests/ # with coverage
+```
 
-`FakeWebSocketPair` captures the server-side socket via `lastServerSocket` so tests can inspect `ws.send.mock.calls`. `connect()` helper returns `{ serverWs, welcome }` after clearing send history.
+`bunfig.toml` sets `preload = ["./tests/setup.ts"]` — this mock lets worker code import `cloudflare:workers` in bun. `FakeWebSocketPair` captures the server-side socket via `lastServerSocket` so tests can inspect `ws.send.mock.calls`. `connect()` helper returns `{ serverWs, welcome }` after clearing send history.
+
+## CI (GitHub Actions — `.github/workflows/ci.yml`)
+
+Triggers on push to `main` or `luca/**` branches, and on PRs to `main`. Three jobs:
+
+1. **typecheck** — `bun run typecheck` (`tsc --noEmit && tsc -p tsconfig.worker.json --noEmit`)
+2. **test** — `bun test tests/`
+3. **build** — `bun run build` (needs typecheck + test); reads `VITE_COLLAB_ENDPOINT` from GitHub secrets
 
 ## Important Notes
 
 - `deleteKeyCode={null}` on ReactFlow — deletion handled by `useKeyboardShortcuts`
 - Grid snap: `snapToGrid={true}`, `snapGrid={[20, 20]}` — all node dimensions must be multiples of 20
-- `NODE_DEFAULT_DATA` in `nodeDefaults.ts` applies per-type data on drop (e.g. `cloudflare: { tps: 3 }`)
+- `NODE_DEFAULT_DATA` in `nodeDefaults.ts` applies per-type data on drop (e.g. `cloudflare: { rps: 3 }`)
 - **Never use NodeToolbar** — portal causes deselection before onClick fires; use `position:absolute` div with `onMouseDown={stopPropagation}`
 - NodePanel is shown as a fixed `position:absolute` overlay in Canvas (not inside ReactFlow's node tree)
 - Right-click drag selection: crosshair cursor injected via `<style>` tag (not inline style — ReactFlow's `.react-flow__pane` has explicit cursor that overrides inherited styles)
 - Scaffold manually if `bun create vite` fails (`.claude` directory causes existing-dir error)
 - `react-icons` is also installed (used for `SiCloudflare`, `MdHub`, etc.) alongside `lucide-react`
+- `ReplicaStack.tsx` exports `ReplicaRows` (footer component) and `replicaNodeHeight(n)` — used by nodes that show replica counts in their footer; not a node type itself
+- `.env.production.example` documents the required env var: `VITE_COLLAB_ENDPOINT=https://blueprint.your-account.workers.dev`
