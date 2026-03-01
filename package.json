@@ -12,6 +12,8 @@
     "cf:deploy:prod": "wrangler pages deploy dist --branch main"
   },
   "dependencies": {
+    "@scalar/api-reference-react": "^0.8.63",
+    "@scalar/openapi-types": "^0.5.3",
     "@xyflow/react": "^12.3.6",
     "html-to-image": "^1.11.11",
     "lucide-react": "^0.475.0",

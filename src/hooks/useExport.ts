@@ -3,6 +3,7 @@ import { toPng } from 'html-to-image';
 import type { AppNode } from '../types/nodes';
 import type { AppEdge } from '../types/edges';
 import { createExport } from '../utils/persistence';
+import { generateOpenApiSpec } from '../utils/openapi';
 
 export function useExport() {
   const exportPng = useCallback(async () => {
@@ -44,5 +45,17 @@ export function useExport() {
     URL.revokeObjectURL(url);
   }, []);
 
-  return { exportPng, exportJson };
+  const exportOpenApi = useCallback((nodes: AppNode[], edges: AppEdge[], name?: string) => {
+    const fileName = name ?? 'blueprint';
+    const spec = generateOpenApiSpec(nodes, edges);
+    const blob = new Blob([JSON.stringify(spec, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.download = `${fileName}.openapi.json`;
+    link.href = url;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  return { exportPng, exportJson, exportOpenApi };
 }

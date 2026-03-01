@@ -22,6 +22,8 @@ import { StorageNode } from './StorageNode';
 import { MessageQueueNode } from './MessageQueueNode';
 import { SubdomainNode } from './SubdomainNode';
 import { EndpointNode } from './EndpointNode';
+import { ApiSpecificationNode } from './ApiSpecificationNode';
+import { ApiServiceNode } from './ApiServiceNode';
 import { LineNode } from './LineNode';
 import type { NodeTypes } from '@xyflow/react';
 
@@ -49,6 +51,8 @@ export const nodeTypes = {
   storage:      StorageNode,
   messagequeue: MessageQueueNode,
   subdomain:    SubdomainNode,
-  endpoint:     EndpointNode,
-  line:         LineNode,
+  endpoint:       EndpointNode,
+  apispecification: ApiSpecificationNode,
+  apiservice:     ApiServiceNode,
+  line:           LineNode,
 } as NodeTypes;
