@@ -1,7 +1,13 @@
+import { DurableObject } from 'cloudflare:workers';
 import { nanoid } from 'nanoid';
-import type { CollabMessage } from './types';
+import type { CollabMessage, EncryptedBlob } from './types';
 
-interface Env {}
+const encoder = new TextEncoder();
+
+interface Env {
+  /** Allowed CORS origin. Defaults to '*' when not set. */
+  CORS_ORIGIN?: string;
+}
 
 const COLORS = [
   '#60a5fa', '#f472b6', '#34d399', '#fb923c',
@@ -44,18 +50,11 @@ const MAX_CONNECTIONS = 20;
 const MAX_MSG_BYTES = 512 * 1024;
 /** Maximum body size for /init POST (1 KB is plenty for a 64-char hash). */
 const MAX_INIT_BODY_BYTES = 1024;
-/**
- * How long (ms) an empty room is kept alive before its storage is wiped.
- * Applies after the last user disconnects, or if a password-protected room
- * is initialised but nobody ever connects.  24 hours is generous enough for
- * a creator who sets a password and then shares the link before opening it.
- */
-const ROOM_TTL_MS = 24 * 60 * 60 * 1000;
 
-function corsHeaders(allowOrigins = true): HeadersInit {
+function corsHeaders(origin: string): HeadersInit {
   return {
-    ...(allowOrigins ? { 'Access-Control-Allow-Origin': '*' } : {}),
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
 }
@@ -68,33 +67,37 @@ function isValidCursor(v: unknown): v is { x: number; y: number } {
       && typeof obj.y === 'number' && isFinite(obj.y);
 }
 
-export class BlueprintRoom {
+export class BlueprintRoom extends DurableObject<Env> {
   private nodes: Record<string, unknown>[] = [];
   private edges: Record<string, unknown>[] = [];
+  /** Non-null when the room is password-protected and has received an encrypted state_update. */
+  private encryptedSnapshot: EncryptedBlob | null = null;
+  private readonly origin: string;
 
-  constructor(
-    private readonly ctx: DurableObjectState,
-    private readonly env: Env,
-  ) {
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    this.origin = env.CORS_ORIGIN ?? '*';
     // Restore persisted state on every (re)construction, including after hibernation.
     // Errors are caught so a storage failure doesn't stall every incoming request.
     this.ctx.blockConcurrencyWhile(async () => {
       try {
         this.nodes = (await this.ctx.storage.get<Record<string, unknown>[]>('nodes')) ?? [];
         this.edges = (await this.ctx.storage.get<Record<string, unknown>[]>('edges')) ?? [];
+        this.encryptedSnapshot = (await this.ctx.storage.get<EncryptedBlob>('encryptedSnapshot')) ?? null;
         // Defensive: storage corruption shouldn't break the DO
         if (!Array.isArray(this.nodes)) this.nodes = [];
         if (!Array.isArray(this.edges)) this.edges = [];
       } catch {
         this.nodes = [];
         this.edges = [];
+        this.encryptedSnapshot = null;
       }
     });
   }
 
   async fetch(request: Request): Promise<Response> {
     if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders() });
+      return new Response(null, { status: 204, headers: corsHeaders(this.origin) });
     }
 
     const url = new URL(request.url);
@@ -109,30 +112,36 @@ export class BlueprintRoom {
     // ── GET /collab/<roomId>/meta ───────────────────────────────────────────
     if (isSubRoute && subRoute === 'meta' && request.method === 'GET') {
       const hasPassword = !!(await this.ctx.storage.get<string>('passwordHash'));
-      return Response.json({ hasPassword }, { headers: corsHeaders() });
+      return Response.json({ hasPassword }, { headers: corsHeaders(this.origin) });
     }
 
     // ── POST /collab/<roomId>/init ──────────────────────────────────────────
-    // Sets the room password exactly once, but only if no WebSocket sessions
-    // are already established.  This prevents an attacker from locking out
-    // legitimate users in an active room, because by the time the room URL is
-    // widely shared the creator's WebSocket is already connected.
+    // Registers a room exactly once, optionally with a password hash.
+    // Blocked after the first call (with or without a password) to prevent a
+    // second caller from adding a password to a previously passwordless room —
+    // a narrow but real race before the creator's WebSocket connects.
+    // Also blocked once any WebSocket is active, since the creator is now live.
     if (isSubRoute && subRoute === 'init' && request.method === 'POST') {
       // Block /init once anyone has connected — the room is "live".
       const activeSessions = this.ctx.getWebSockets().length;
+      const cors = corsHeaders(this.origin);
+
       if (activeSessions > 0) {
-        return new Response('Room already has active sessions', { status: 409 });
+        return new Response('Room already has active sessions', { status: 409, headers: cors });
       }
 
-      const existing = await this.ctx.storage.get<string>('passwordHash');
-      if (existing) {
-        return new Response('Room already has a password', { status: 409 });
+      // Block re-initialization regardless of whether a password was set.
+      // Checking only 'passwordHash' would allow a second caller to add a
+      // password to a room created without one.
+      const initialized = await this.ctx.storage.get<boolean>('initialized');
+      if (initialized) {
+        return new Response('Room already initialized', { status: 409, headers: cors });
       }
 
       // Guard against huge bodies before parsing JSON.
       const contentLength = parseInt(request.headers.get('Content-Length') ?? '0', 10);
       if (contentLength > MAX_INIT_BODY_BYTES) {
-        return new Response('Request body too large', { status: 413 });
+        return new Response('Request body too large', { status: 413, headers: cors });
       }
 
       // Parse body only when there is one. An empty POST registers a
@@ -142,7 +151,7 @@ export class BlueprintRoom {
         try {
           body = await request.json() as { passwordHash?: unknown };
         } catch {
-          return new Response('Invalid JSON', { status: 400 });
+          return new Response('Invalid JSON', { status: 400, headers: cors });
         }
       }
 
@@ -150,37 +159,50 @@ export class BlueprintRoom {
         if (typeof body.passwordHash !== 'string' ||
             body.passwordHash.length !== 64 ||
             !/^[0-9a-f]{64}$/.test(body.passwordHash)) {
-          return new Response('passwordHash must be a 64-char lowercase hex string', { status: 400 });
+          return new Response('passwordHash must be a 64-char lowercase hex string', { status: 400, headers: cors });
         }
         await this.ctx.storage.put('passwordHash', body.passwordHash);
       }
 
-      // Schedule cleanup in case the creator never opens the WebSocket.
-      await this.ctx.storage.setAlarm(Date.now() + ROOM_TTL_MS);
-      return new Response('OK');
+      // Mark the room as initialized so subsequent /init calls are rejected,
+      // even if no password was stored (passwordless rooms).
+      await this.ctx.storage.put('initialized', true);
+      return new Response('OK', { headers: cors });
     }
 
-    // ── Password check (probe GETs and WS upgrades) ─────────────────────────
+    // ── Password check (probe GETs, DELETE, and WS upgrades) ────────────────
     const storedHash = await this.ctx.storage.get<string>('passwordHash');
     if (storedHash) {
       const provided = url.searchParams.get('pwd');
       if (!provided || provided !== storedHash) {
-        return new Response('Unauthorized', { status: 403, headers: corsHeaders() });
+        return new Response('Unauthorized', { status: 403, headers: corsHeaders(this.origin) });
       }
+    }
+
+    // ── DELETE room ──────────────────────────────────────────────────────────
+    if (request.method === 'DELETE') {
+      await this.ctx.storage.deleteAll();
+      this.nodes = [];
+      this.edges = [];
+      this.encryptedSnapshot = null;
+      // Disconnect all live clients so they don't inadvertently resurrect the room
+      // by sending state_update messages after the storage has been wiped.
+      for (const ws of this.ctx.getWebSockets()) {
+        try { ws.close(4000, 'Room deleted'); } catch { /* already closed */ }
+      }
+      return new Response(null, { status: 204, headers: corsHeaders(this.origin) });
     }
 
     // ── Non-WebSocket probe ─────────────────────────────────────────────────
     const upgradeHeader = request.headers.get('Upgrade');
     if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
-      return new Response('OK', { headers: corsHeaders() });
+      return new Response('OK', { headers: corsHeaders(this.origin) });
     }
 
     // ── WebSocket upgrade ───────────────────────────────────────────────────
     const pair = new WebSocketPair();
-    const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
-
-    // Cancel any pending cleanup alarm — the room is now live.
-    await this.ctx.storage.deleteAlarm();
+    const client = pair[0] as WebSocket;
+    const server = pair[1] as WebSocket;
 
     const clientId = nanoid(8);
     // getWebSockets() BEFORE acceptWebSocket: count is the number of *other* active connections.
@@ -189,34 +211,49 @@ export class BlueprintRoom {
     const existingCount = existingSockets.length;
 
     if (existingCount >= MAX_CONNECTIONS) {
-      return new Response('Room is full', { status: 503 });
+      return new Response('Room is full', { status: 503, headers: corsHeaders(this.origin) });
     }
 
-    const isCreator = existingCount === 0;
     const color = COLORS[existingCount % COLORS.length];
 
-    // Collect names already in use so we don't assign duplicates.
-    const usedNames = new Set(
-      existingSockets.flatMap((ws) => {
-        const tags = this.ctx.getTags(ws);
-        return tags[2] ? [tags[2]] : [];
-      }),
-    );
+    // Single pass: collect used names and build the other-clients list for the welcome message.
+    const usedNames = new Set<string>();
+    const otherClients: { clientId: string; color: string; name: string }[] = [];
+    for (const ws of existingSockets) {
+      const [cid, col, nam] = this.ctx.getTags(ws);
+      if (nam) usedNames.add(nam);
+      otherClients.push({ clientId: cid ?? '', color: col ?? '#ffffff', name: nam ?? 'User' });
+    }
     const name = randomName(usedNames);
 
     this.ctx.acceptWebSocket(server, [clientId, color, name]);
+
+    // Broadcast client_joined to all existing sockets before sending welcome.
+    const joinedMsg: CollabMessage = { type: 'client_joined', clientId, color, name };
+    const joinedPayload = JSON.stringify(joinedMsg);
+    for (const ws of existingSockets) {
+      try { ws.send(joinedPayload); } catch { /* closed */ }
+    }
 
     const welcome: CollabMessage = {
       type: 'welcome',
       clientId,
       color,
       name,
-      isCreator,
-      snapshot: { nodes: this.nodes, edges: this.edges },
+      clients: otherClients,
+      snapshot: this.encryptedSnapshot ?? { nodes: this.nodes, edges: this.edges },
     };
     server.send(JSON.stringify(welcome));
 
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  private broadcastExcept(sender: WebSocket, payload: string): void {
+    for (const ws of this.ctx.getWebSockets()) {
+      if (ws !== sender) {
+        try { ws.send(payload); } catch { /* closed */ }
+      }
+    }
   }
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
@@ -224,7 +261,7 @@ export class BlueprintRoom {
     // For strings, encode to UTF-8 to get the true byte count — JS .length
     // counts UTF-16 code units which can undercount multi-byte characters.
     const byteLength = typeof message === 'string'
-      ? new TextEncoder().encode(message).length
+      ? encoder.encode(message).byteLength
       : (message as ArrayBuffer).byteLength;
     if (byteLength > MAX_MSG_BYTES) {
       ws.close(1009, 'Message too large');
@@ -245,7 +282,28 @@ export class BlueprintRoom {
     const name     = tags[2] ?? 'User';
 
     if (msg.type === 'state_update') {
-      // Reject non-array payloads — storing them would corrupt every future joiner's snapshot.
+      // Encrypted variant: { iv, ciphertext } — relay opaque blob, server never decrypts.
+      if ('iv' in msg && typeof msg.iv === 'string' && 'ciphertext' in msg && typeof msg.ciphertext === 'string') {
+        this.encryptedSnapshot = { iv: msg.iv, ciphertext: msg.ciphertext };
+        // Clear stale plain state so DO storage doesn't accumulate dead data.
+        this.nodes = [];
+        this.edges = [];
+        void Promise.all([
+          this.ctx.storage.put('encryptedSnapshot', this.encryptedSnapshot),
+          this.ctx.storage.delete('nodes'),
+          this.ctx.storage.delete('edges'),
+        ]).catch((e) => console.error('persist encryptedSnapshot:', e));
+        const relay: CollabMessage = {
+          type: 'state_update',
+          senderId: clientId,
+          iv: msg.iv,
+          ciphertext: msg.ciphertext,
+        };
+        this.broadcastExcept(ws, JSON.stringify(relay));
+        return;
+      }
+
+      // Plain variant: { nodes, edges } — reject non-array payloads to prevent corruption.
       if (!Array.isArray(msg.nodes) || !Array.isArray(msg.edges)) return;
 
       this.nodes = msg.nodes;
@@ -261,12 +319,7 @@ export class BlueprintRoom {
         nodes: msg.nodes,
         edges: msg.edges,
       };
-      const payload = JSON.stringify(relay);
-      for (const otherWs of this.ctx.getWebSockets()) {
-        if (otherWs !== ws) {
-          try { otherWs.send(payload); } catch { /* closed */ }
-        }
-      }
+      this.broadcastExcept(ws, JSON.stringify(relay));
     } else if (msg.type === 'presence') {
       // Validate cursor before relaying: must be null or a finite {x,y} pair.
       // Rejecting malformed cursors prevents NaN layout artifacts in OtherCursors.tsx.
@@ -280,12 +333,7 @@ export class BlueprintRoom {
         color,
         name,
       };
-      const payload = JSON.stringify(relay);
-      for (const otherWs of this.ctx.getWebSockets()) {
-        if (otherWs !== ws) {
-          try { otherWs.send(payload); } catch { /* closed */ }
-        }
-      }
+      this.broadcastExcept(ws, JSON.stringify(relay));
     }
   }
 
@@ -294,38 +342,10 @@ export class BlueprintRoom {
     const clientId = tags[0];
     if (!clientId) return;
     const msg: CollabMessage = { type: 'client_left', clientId };
-    const payload = JSON.stringify(msg);
-    for (const otherWs of this.ctx.getWebSockets()) {
-      if (otherWs !== ws) {
-        try { otherWs.send(payload); } catch { /* closed */ }
-      }
-    }
-    // Schedule storage cleanup once the room goes empty.
-    // getWebSockets() still includes `ws` at this point (closed but not yet removed),
-    // so a count of 1 means this is the last client.
-    if (this.ctx.getWebSockets().length <= 1) {
-      await this.ctx.storage.setAlarm(Date.now() + ROOM_TTL_MS);
-    }
+    this.broadcastExcept(ws, JSON.stringify(msg));
   }
 
   async webSocketError(ws: WebSocket): Promise<void> {
     await this.webSocketClose(ws);
-  }
-
-  /**
-   * Called by the Workers runtime when our scheduled alarm fires.
-   * If the room is still empty, wipe all persisted storage so the
-   * Durable Object can be garbage-collected by the platform.
-   * If someone reconnected in the meantime, reschedule for another TTL.
-   */
-  async alarm(): Promise<void> {
-    if (this.ctx.getWebSockets().length > 0) {
-      // Room came back to life — push the deadline out.
-      await this.ctx.storage.setAlarm(Date.now() + ROOM_TTL_MS);
-      return;
-    }
-    await this.ctx.storage.deleteAll();
-    this.nodes = [];
-    this.edges = [];
   }
 }

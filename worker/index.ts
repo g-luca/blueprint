@@ -5,10 +5,32 @@ interface Env {
   BLUEPRINT_ROOM:    DurableObjectNamespace;
   ROOM_RATE_LIMITER: DurableObjectNamespace;
   ASSETS: Fetcher;
+  /** Allowed CORS origin. Defaults to '*' when not set. */
+  CORS_ORIGIN?: string;
+  /** Per-IP room creation limit. Defaults to 10/day. Set higher in dev (e.g. RATE_LIMIT=1000). */
+  RATE_LIMIT?: string;
 }
 
 /** Valid room IDs: 1–50 URL-safe characters produced by nanoid. */
 const ROOM_ID_RE = /^[A-Za-z0-9_-]{1,50}$/;
+
+/**
+ * Inject security headers into any non-WebSocket response.
+ * 101 Switching Protocols responses carry a `webSocket` property that cannot
+ * survive reconstruction via `new Response(body, init)`, so we pass them through.
+ */
+function withSecurityHeaders(response: Response): Response {
+  if (response.status === 101) return response;
+  const modified = new Response(response.body, response);
+  modified.headers.set('X-Content-Type-Options', 'nosniff');
+  modified.headers.set('X-Frame-Options', 'DENY');
+  modified.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  modified.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  // HSTS: 1 year, include subdomains. Safe to set on all responses since the
+  // worker only runs behind Cloudflare's TLS termination in production.
+  modified.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  return modified;
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -42,7 +64,10 @@ export default {
         if (!success) {
           return new Response('Too many rooms created today. Try again tomorrow.', {
             status: 429,
-            headers: { 'Retry-After': '86400' },
+            headers: {
+              'Retry-After': '86400',
+              'Access-Control-Allow-Origin': env.CORS_ORIGIN ?? '*',
+            },
           });
         }
 
@@ -51,10 +76,10 @@ export default {
       }
 
       const id = env.BLUEPRINT_ROOM.idFromName(roomId);
-      return env.BLUEPRINT_ROOM.get(id).fetch(roomRequest);
+      return withSecurityHeaders(await env.BLUEPRINT_ROOM.get(id).fetch(roomRequest));
     }
 
     // Serve the SPA for everything else.
-    return env.ASSETS.fetch(request);
+    return withSecurityHeaders(await env.ASSETS.fetch(request));
   },
 };

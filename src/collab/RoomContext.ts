@@ -9,6 +9,7 @@ export interface RoomContextValue {
   roomName: string | null;
   createRoom: (password?: string, name?: string) => Promise<void>;
   leaveRoom: () => void;
+  deleteRoom: () => Promise<void>;
   copyLink: () => Promise<void>;
   copied: boolean;
 }
@@ -20,6 +21,7 @@ export const RoomContext = createContext<RoomContextValue>({
   roomName: null,
   createRoom: async () => {},
   leaveRoom: () => {},
+  deleteRoom: async () => {},
   copyLink: async () => {},
   copied: false,
 });

@@ -3,7 +3,9 @@ import { useFlowStore } from '../../store/useFlowStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useExport } from '../../hooks/useExport';
 import { ApiReferenceModal } from '../ApiReferenceModal';
-import { ShareButton } from '../Collab/ShareButton';
+import { ShareButton } from '../../collab/components/ShareButton';
+import { PresenceList } from '../../collab/components/PresenceList';
+import { COLLAB_ENABLED } from '../../utils/features';
 import type { ThemeName } from '../../themes';
 import type { SavedFile } from '../../utils/persistence';
 
@@ -478,10 +480,13 @@ export function Toolbar() {
           </span>
         )}
 
-        {/* Share button — right-aligned */}
-        <div style={{ marginLeft: 'auto' }}>
-          <ShareButton />
-        </div>
+        {/* Collab controls — right-aligned; hidden when collab is disabled */}
+        {COLLAB_ENABLED && (
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <PresenceList />
+            <ShareButton />
+          </div>
+        )}
       </header>
 
       {/* Name prompt modal */}

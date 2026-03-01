@@ -54,6 +54,8 @@ export function parseExport(
   if (!Array.isArray(obj.nodes) || !Array.isArray(obj.edges)) return null;
 
   // Run any applicable migrations from detected version up to SCHEMA_VERSION.
+  // Missing entries in MIGRATIONS silently no-op for that step — every version
+  // bump must add a corresponding entry to avoid silent data loss on load.
   let data = obj;
   for (let v = obj.version as number; v < SCHEMA_VERSION; v++) {
     const migrate = MIGRATIONS[v];

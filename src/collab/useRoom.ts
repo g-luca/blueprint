@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { nanoid } from 'nanoid';
-import { hashPassword } from '../utils/crypto';
+import { hashPassword, deriveEncryptionKey } from '../utils/crypto';
+import { COLLAB_ENDPOINT } from '../utils/features';
 
 function parseRoomFromHash(): string | null {
   const hash = window.location.hash;
@@ -11,6 +12,7 @@ function parseRoomFromHash(): string | null {
 export function useRoom() {
   const [roomId, setRoomId] = useState<string | null>(() => parseRoomFromHash());
   const [passwordHash, setPasswordHash] = useState<string | undefined>(undefined);
+  const [encryptionKey, setEncryptionKey] = useState<CryptoKey | undefined>(undefined);
   const [roomName, setRoomName] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
@@ -26,19 +28,21 @@ export function useRoom() {
   }, []);
 
   const createRoom = useCallback(async (password?: string, name?: string): Promise<void> => {
-    const id = nanoid(8);
+    const id = nanoid(21);
     let hash: string | undefined;
 
     // Always POST /init so the rate limiter can gate all room creation
     // regardless of whether a password is set.  For no-password rooms the
     // body is empty; for password rooms it carries the SHA-256 hash.
     const body: Record<string, string> = {};
+    let encKey: CryptoKey | undefined;
     if (password) {
       hash = await hashPassword(password);
       body.passwordHash = hash;
+      encKey = await deriveEncryptionKey(password, id);
     }
 
-    const resp = await fetch(`/collab/${id}/init`, {
+    const resp = await fetch(`${COLLAB_ENDPOINT}/collab/${id}/init`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -51,6 +55,7 @@ export function useRoom() {
     }
 
     setPasswordHash(hash);
+    setEncryptionKey(encKey);
     setRoomName(name?.trim() || `Room ${id.slice(0, 5)}`);
     window.location.hash = `room/${id}`;
     setRoomId(id);
@@ -58,10 +63,29 @@ export function useRoom() {
 
   const leaveRoom = useCallback(() => {
     setPasswordHash(undefined);
+    setEncryptionKey(undefined);
     setRoomName(null);
     window.location.hash = '';
     setRoomId(null);
   }, []);
+
+  const deleteRoom = useCallback(async () => {
+    if (!roomId) return;
+    const url = passwordHash
+      ? `${COLLAB_ENDPOINT}/collab/${roomId}?pwd=${encodeURIComponent(passwordHash)}`
+      : `${COLLAB_ENDPOINT}/collab/${roomId}`;
+    try {
+      const resp = await fetch(url, { method: 'DELETE' });
+      if (!resp.ok) {
+        // Log but don't block the local leave — the room stays on the server
+        // until it can be cleaned up (e.g. wrong password or transient error).
+        console.warn(`deleteRoom: server returned ${resp.status}`);
+      }
+    } catch {
+      // Network error — leave locally regardless
+    }
+    leaveRoom();
+  }, [roomId, passwordHash, leaveRoom]);
 
   const copyLink = useCallback(async () => {
     if (!roomId) return;
@@ -79,9 +103,11 @@ export function useRoom() {
     roomId,
     isInRoom: roomId !== null,
     passwordHash,
+    encryptionKey,
     roomName,
     createRoom,
     leaveRoom,
+    deleteRoom,
     copyLink,
     copied,
   };

@@ -8,9 +8,14 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "worker:dev": "wrangler dev --port 8787",
-    "cf:build": "npm run build",
+    "cf:build": "bun run build",
     "cf:deploy": "wrangler deploy",
-    "cf:deploy:prod": "wrangler deploy --env production"
+    "cf:deploy:prod": "wrangler deploy --env production",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.worker.json --noEmit",
+    "test": "bun test tests/",
+    "test:frontend": "bun test tests/frontend/",
+    "test:worker": "bun test tests/worker/",
+    "test:coverage": "bun test --coverage tests/"
   },
   "dependencies": {
     "@scalar/api-reference-react": "^0.8.63",
@@ -35,5 +40,8 @@
     "typescript": "^5.7.2",
     "vite": "^6.0.5",
     "wrangler": "^4.68.1"
-  }
+  },
+  "trustedDependencies": [
+    "@swc/core"
+  ]
 }

@@ -13,7 +13,7 @@ export function JoinModal({ onJoin, onCancel, error }: JoinModalProps) {
 
   useEffect(() => {
     // Auto-focus the input when the modal mounts or when an error resets it
-    setTimeout(() => inputRef.current?.focus(), 50);
+    inputRef.current?.focus();
   }, [error]);
 
   // Dismiss on Escape

@@ -1,5 +1,5 @@
 import { useReactFlow } from '@xyflow/react';
-import { useCollab } from '../../context/CollabContext';
+import { useCollab } from '../CollabContext';
 
 export function OtherCursors() {
   const { otherCursors } = useCollab();

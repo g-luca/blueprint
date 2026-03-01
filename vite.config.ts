@@ -7,13 +7,4 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
-  server: {
-    proxy: {
-      '/collab': {
-        target: 'http://localhost:8787',
-        changeOrigin: true,
-        ws: true,
-      },
-    },
-  },
 })

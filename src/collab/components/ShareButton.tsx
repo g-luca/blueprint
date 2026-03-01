@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
-import { useRoomContext } from '../../context/RoomContext';
-import { useCollab } from '../../context/CollabContext';
+import { useRoomContext } from '../RoomContext';
+import { useCollab } from '../CollabContext';
 
 export function ShareButton() {
   const { roomId, isInRoom, createRoom, leaveRoom, copyLink, copied } = useRoomContext();

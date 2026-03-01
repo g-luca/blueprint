@@ -21,8 +21,8 @@ import { NodePanel, LinePanel } from '../../nodes/NodePanel';
 import { EndpointPanel } from '../../nodes/EndpointPanel';
 import { ApiSpecificationPanel } from '../../nodes/ApiSpecificationPanel';
 import { ApiServicePanel } from '../../nodes/ApiServicePanel';
-import { useCollab } from '../../context/CollabContext';
-import { OtherCursors } from '../Collab/OtherCursors';
+import { useCollab } from '../../collab/CollabContext';
+import { OtherCursors } from '../../collab/components/OtherCursors';
 import type { FlowEdgeData } from '../../types/edges';
 import type { BaseNodeData } from '../../types/nodes';
 
@@ -162,7 +162,10 @@ export function Canvas() {
   }, [screenToFlowPosition, getIntersectingNodes, getNodes, onNodesChange]);
 
   const onContextMenu = useCallback((e: React.MouseEvent) => {
-    // Suppress browser context menu when a drag just happened
+    // Suppress browser context menu when a drag just happened.
+    // dragStart.current is already null here (reset synchronously in onMouseUp),
+    // so we rely on selBox, which still holds its pre-update value in this closure
+    // because React hasn't re-rendered yet — the stale capture is intentional.
     if (dragStart.current !== null || selBox !== null) e.preventDefault();
   }, [selBox]);
 

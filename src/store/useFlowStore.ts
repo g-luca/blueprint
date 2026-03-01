@@ -153,6 +153,9 @@ export const useFlowStore = create<FlowState>((set, get) => ({
     });
   },
 
+  // Remote updates from useCollabSync — intentionally bypass the undo stack.
+  // Clearing `future` on every 33 ms remote broadcast would destroy the user's
+  // in-progress redo history; remote state is authoritative but not user-initiated.
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
 
@@ -281,6 +284,11 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   loadFile: (id: string) => {
     const file = getAllFiles().find((f) => f.id === id);
     if (!file) return;
+    if (file.roomId) {
+      // Navigate to the room URL — CollabLayer will load authoritative state from server.
+      window.location.hash = `room/${file.roomId}`;
+      return;
+    }
     setLastFileId(id);
     set({
       nodes: file.nodes,

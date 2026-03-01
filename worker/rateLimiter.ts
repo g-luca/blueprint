@@ -1,8 +1,12 @@
-/** Maximum rooms a single IP may create within a rolling 24-hour window. */
-const LIMIT = 10;
+import { DurableObject } from 'cloudflare:workers';
+
+const DEFAULT_LIMIT = 10;
 const WINDOW_MS = 24 * 60 * 60 * 1000;
 
-interface Env {}
+interface Env {
+  /** Override the per-IP room creation limit. Useful for local dev (e.g. RATE_LIMIT=1000). */
+  RATE_LIMIT?: string;
+}
 
 /**
  * Per-IP rate limiter for room creation.
@@ -15,14 +19,16 @@ interface Env {}
  *   count   – number of rooms created in the current window
  *   resetAt – Unix ms timestamp when the window resets
  */
-export class RoomRateLimiter {
+export class RoomRateLimiter extends DurableObject<Env> {
   private count = 0;
   private resetAt = 0;
+  private readonly limit: number;
 
-  constructor(
-    private readonly ctx: DurableObjectState,
-    private readonly env: Env,
-  ) {
+  constructor(ctx: DurableObjectState, env: Env) {
+    super(ctx, env);
+    const parsed = parseInt(env.RATE_LIMIT ?? '', 10);
+    // Fall back to DEFAULT_LIMIT for missing, zero, negative, or non-numeric values.
+    this.limit = Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_LIMIT;
     this.ctx.blockConcurrencyWhile(async () => {
       this.count   = (await this.ctx.storage.get<number>('count'))   ?? 0;
       this.resetAt = (await this.ctx.storage.get<number>('resetAt')) ?? 0;
@@ -38,7 +44,7 @@ export class RoomRateLimiter {
       this.resetAt = now + WINDOW_MS;
     }
 
-    if (this.count >= LIMIT) {
+    if (this.count >= this.limit) {
       return Response.json({ success: false, resetAt: this.resetAt });
     }
 

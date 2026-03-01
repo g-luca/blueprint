@@ -2,6 +2,10 @@ name = "blueprint"
 compatibility_date = "2026-02-24"
 main = "worker/index.ts"
 
+[vars]
+CORS_ORIGIN = "*"
+RATE_LIMIT = "10"
+
 [assets]
 directory = "./dist"
 not_found_handling = "single-page-application"

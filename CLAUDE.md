@@ -59,7 +59,7 @@ EdgeProps<AppEdge>           // AppEdge = Edge<FlowEdgeData, 'flow' | 'labeled'>
 | `loadbalancer` | green | Splits RPS, LB policy selector in footer (RR/Rand/LC/Hash) |
 | `firewall` | red | Broadcast |
 | `service` | blue | Forwarder, splits RPS |
-| `apigateway` | violet | Forwarder |
+| `apigateway` | violet | Broadcast (full RPS to every outgoing edge) |
 | `container` | teal | Forwarder |
 | `database` | indigo | Forwarder |
 | `cache` | rose | Forwarder |
@@ -82,6 +82,15 @@ EdgeProps<AppEdge>           // AppEdge = Edge<FlowEdgeData, 'flow' | 'labeled'>
 | `src/data/palette.ts` | Palette categories & items |
 | `src/utils/nodeDefaults.ts` | `NODE_DIMENSIONS`, `NODE_DEFAULT_LABELS`, `NODE_DEFAULT_DATA` per type |
 | `src/components/Canvas/Canvas.tsx` | ReactFlow wrapper, right-click drag selection, undo snapshot on drag |
+| `src/utils/features.ts` | `COLLAB_ENDPOINT` + `COLLAB_ENABLED` derived from `VITE_COLLAB_ENDPOINT` |
+| `src/utils/crypto.ts` | `hashPassword`, `deriveEncryptionKey`, `encryptState`, `decryptState` — Web Crypto helpers |
+| `src/collab/CollabLayer.tsx` | Single collab mount point in `App.tsx`; contains Provider + Gate + AutoSave |
+| `src/collab/useCollabSync.ts` | WebSocket lifecycle, message dispatch, 20 fps presence throttle |
+| `src/collab/useRoom.ts` | `createRoom`, `joinRoom`, `leaveRoom`, `deleteRoom` |
+| `worker/index.ts` | CF Worker entry: routing, security headers, rate-limit guard |
+| `worker/room.ts` | `BlueprintRoom` Durable Object: HTTP endpoints + WebSocket handler |
+| `worker/rateLimiter.ts` | `RoomRateLimiter` Durable Object: per-IP 24-hour sliding window |
+| `worker/types.ts` | `CollabMessage` union — shared between worker and frontend |
 
 ## Adding a New Node Type
 
@@ -131,7 +140,7 @@ Every mutating action calls `saveSnapshot()` before applying changes. `Canvas.ts
 ## Animation & TPS System (`src/utils/graphTps.ts`)
 
 - `CLIENT_TYPES`: `browser | ios | android | tv | watch | vr` — emit by default
-- `BROADCAST_TYPES`: `cloudflare | cdn | dns | subdomain | firewall` — forward full RPS to **every** outgoing edge (no split)
+- `BROADCAST_TYPES`: `cloudflare | cdn | dns | subdomain | firewall | apigateway` — forward full RPS to **every** outgoing edge (no split)
 - All other nodes split TPS equally across outgoing edges (load-balancer semantics)
 - `isEmitter(node)`: true if `data.animated === true`, false if `data.animated === false`, else checks `CLIENT_TYPES`
 - `computeEffectiveTps(nodes, edges)`: Kahn's topological sort; emitters use own `data.tps` (default 1k); forwarders sum upstream. Emitter targets are excluded from outTargets (emitter-to-emitter edges don't propagate TPS).
@@ -221,6 +230,194 @@ const MIGRATIONS: Record<number, (data: any) => any> = {
 - A plain `{ nodes, edges }` dump with no `version` field is accepted as a legacy format (name defaults to `"Imported"`)
 - After import, `currentFileId` is `null` — the canvas is unsaved until the user explicitly saves it
 
+## Real-time Collaboration
+
+### Feature flag
+
+Collab is opt-in via an environment variable. When `VITE_COLLAB_ENDPOINT` is absent the app runs fully offline.
+
+```bash
+# dev
+VITE_COLLAB_ENDPOINT=http://localhost:8787 bun dev
+bun run worker:dev   # separate terminal
+
+# prod — set at build time or in hosting env
+VITE_COLLAB_ENDPOINT=https://<worker-url>
+```
+
+`src/utils/features.ts` derives two exports used everywhere:
+```ts
+export const COLLAB_ENDPOINT: string | undefined = import.meta.env.VITE_COLLAB_ENDPOINT || undefined;
+export const COLLAB_ENABLED = !!COLLAB_ENDPOINT;
+```
+
+### Frontend file structure
+
+```
+src/collab/
+  CollabContext.ts          – React context: clientId, color, name, clients[], presence map
+  RoomContext.ts            – React context: roomId, leaveRoom(), deleteRoom()
+  useRoom.ts                – createRoom(), joinRoom(), leaveRoom(), deleteRoom() logic
+  useCollabSync.ts          – WebSocket lifecycle, message dispatch, presence throttle
+  CollabLayer.tsx           – Single export; wraps the App layout in App.tsx
+  components/
+    ShareButton.tsx         – Toolbar button (hidden when COLLAB_ENABLED=false)
+    JoinModal.tsx           – Password entry dialog for joining a protected room
+    OtherCursors.tsx        – SVG overlay of other users' cursors
+    PresenceList.tsx        – Avatar dots in Toolbar (max 4 + overflow count)
+```
+
+`CollabLayer.tsx` is the single mounting point in `App.tsx`:
+```tsx
+if (!COLLAB_ENABLED) return layout;
+return <CollabLayer>{layout}</CollabLayer>;
+```
+It contains `CollabProvider`, `CollabGate` (handles auth/join flow), and `RoomAutoSave`.
+
+### Worker architecture (Cloudflare)
+
+```
+worker/
+  index.ts          – Fetch router: routes /collab/<roomId>[/*] → BlueprintRoom DO,
+                      injects 5 security headers, rate-limits POST /init
+  room.ts           – BlueprintRoom Durable Object (WebSocket + HTTP)
+  rateLimiter.ts    – RoomRateLimiter Durable Object (per-IP sliding window)
+  types.ts          – CollabMessage union (shared with frontend)
+```
+
+Worker environment variables:
+| Var | Default | Purpose |
+|---|---|---|
+| `CORS_ORIGIN` | `*` | `Access-Control-Allow-Origin` header value |
+| `RATE_LIMIT` | `10` | Max rooms per IP per 24 h — set higher in dev (e.g. `RATE_LIMIT=1000`) |
+
+### Room URL & identity
+
+- Room IDs: `nanoid(21)` — 21-char URL-safe IDs, permanent (no TTL)
+- URL hash: `#room/<roomId>` — CollabLayer reads this on mount
+- Room ID regex in worker: `/^[A-Za-z0-9_-]{1,50}$/` — IDs longer than 50 or with invalid chars → 400
+- Worker state persisted in Cloudflare DO storage: `nodes`, `edges`, `passwordHash`, `encryptedSnapshot`
+
+### HTTP endpoints (`BlueprintRoom.fetch`)
+
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| OPTIONS | any | — | CORS preflight → 204 |
+| GET | `/collab/:id/meta` | — | `{ hasPassword: bool }` — always public |
+| POST | `/collab/:id/init` | — | Register room (once). Body: `{ passwordHash?: string }` (64-char lowercase hex). Blocked after first WS connects. |
+| GET | `/collab/:id` | pwd? | Probe / health check → 200 |
+| DELETE | `/collab/:id` | pwd? | Wipe all storage (nodes, edges, password) → 204 |
+| GET (Upgrade) | `/collab/:id` | pwd? | WebSocket upgrade → 101 |
+
+Password check applies to DELETE, probe GET, and WS upgrade — not to `/meta` or `/init`.
+
+### WebSocket message protocol (`worker/types.ts`)
+
+All messages are JSON strings. The server never echoes back to the sender.
+
+```ts
+type CollabMessage =
+  | { type: 'welcome';      clientId; color; name; clients: {clientId,color,name}[];
+      snapshot: {nodes,edges} | {iv,ciphertext} }   // plain or encrypted
+  | { type: 'client_joined'; clientId; color; name }
+  | { type: 'client_left';  clientId }
+  | { type: 'state_update'; senderId; nodes: Record[]; edges: Record[] }  // plain
+  | { type: 'state_update'; senderId; iv: string; ciphertext: string }    // encrypted
+  | { type: 'presence';     senderId; cursor: {x,y} | null; color; name }
+```
+
+**Connection flow:**
+1. Server calls `acceptWebSocket(server, [clientId, color, name])` — tags stored on WS
+2. Broadcasts `client_joined` to all existing sockets
+3. Sends `welcome` to new socket with current snapshot + existing clients list
+
+**`state_update`:** Two variants. Plain (`nodes`/`edges` arrays): server validates both are arrays then stores and relays. Encrypted (`iv`+`ciphertext` strings): server relays the opaque blob unchanged — it never decrypts. The two are mutually exclusive per room based on whether a password is set. `senderId` is always taken from server-side tags (not the message body — spoofing prevented).
+
+**`presence`:** Cursor must be `null` or `{x: finite, y: finite}`. NaN/Infinity/non-object cursors are silently dropped.
+
+**`client_left`:** Sent by server on `webSocketClose` and `webSocketError`. If the closing socket has no tags (never registered), the handler returns early with no broadcast.
+
+### WebSocket limits & constraints
+
+- Max connections per room: **20** (21st gets 503)
+- Max message size: **512 KB** — larger messages close the socket with code 1009
+- Malformed JSON: silently ignored (no relay, no error)
+- Unknown message types: silently ignored
+
+### Client identity & presence
+
+- `clientId`: `nanoid(8)` assigned at connect
+- `color`: cycles through 8 fixed colors by connection index
+- `name`: random `"<Adjective> <Animal>"` from 40×40 vocabulary, unique within the room
+- Tags `[clientId, color, name]` stored on the WS via `ctx.acceptWebSocket` — retrieved with `ctx.getTags(ws)` in all handlers
+- Presence throttled at **20 fps** (50 ms) in `useCollabSync.ts`; `null` cursor sent immediately on mouse leave
+
+### CollabGate states
+
+`CollabLayer` manages a gate state machine before showing the canvas:
+- `joining` — probing `/meta`, optionally showing `JoinModal` for password
+- `joined` — WS connected, canvas active
+- `offline-cached` — WS failed but localStorage has a snapshot → shows canvas with "Offline — showing cached version" banner + Retry button
+
+### End-to-end Encryption (`src/utils/crypto.ts`)
+
+Password-protected rooms use client-side AES-GCM-256 encryption. The server stores and relays an opaque ciphertext it cannot read.
+
+**Key derivation** — `deriveEncryptionKey(password, roomId)`:
+- PBKDF2, 100 000 iterations, SHA-256, `roomId` as salt (unique per room, never stored)
+- Returns a non-extractable `CryptoKey` for AES-GCM-256 encrypt + decrypt
+- Separate from the auth hash: `hashPassword` (SHA-256 of the password) is used for the `?pwd=` query param; `deriveEncryptionKey` is used for canvas content
+
+**Encryption** — `encryptState(key, nodes, edges)`:
+- Serialises `{ nodes, edges }` as JSON, encrypts with a fresh random 12-byte IV
+- Returns `{ iv: base64, ciphertext: base64 }`
+
+**Decryption** — `decryptState(key, { iv, ciphertext })`:
+- Reverses the above; throws on wrong key or tampered ciphertext (AES-GCM authentication tag)
+
+**Client flow:**
+- Creator: `createRoom(password)` calls `hashPassword` + `deriveEncryptionKey` in parallel; `encryptionKey` stored in `useRoom` state
+- Joiner: `onJoin(rawPassword)` in `CollabGate` calls the same two functions in parallel; key stored in gate state
+- Key flows: `useRoom` → `CollabLayer` → `CollabGate` → `CollabProvider` → `useCollabSync`
+- Unprotected rooms: `encryptionKey` is `undefined` throughout; plain path taken
+
+**`useCollabSync` with encryption:**
+- `sendStateUpdate()` is async; when `encryptionKey` is set it calls `encryptState` before sending `{ iv, ciphertext }` variant
+- `ws.onmessage` runs as `void (async () => { ... })()` to support `await decryptState()`
+- Welcome snapshot: detects `'iv' in snap` to decide between decrypt and direct load
+- Incoming `state_update`: detects `'iv' in msg` to decide between decrypt and direct apply
+- Decryption failures are silently swallowed (wrong key or tampered data → no canvas update)
+
+### Rate limiter (`RoomRateLimiter` DO)
+
+- One DO instance per IP (`idFromName(ip)`), keyed by `CF-Connecting-IP` (falls back to `"unknown"`)
+- Rolling 24-hour window: allows `RATE_LIMIT` (default 10) room creations, blocks with 429 + `Retry-After: 86400`
+- State persisted to DO storage (`count`, `resetAt`) — survives worker restarts
+- **Dev tip:** delete `.wrangler/state/v3/do/blueprint-RoomRateLimiter/` to reset the counter
+
+### Security headers (injected by `withSecurityHeaders` in `index.ts`)
+
+Applied to all non-101 responses: `X-Content-Type-Options`, `X-Frame-Options: DENY`, `Strict-Transport-Security`, `Referrer-Policy`, `Permissions-Policy`. 101 responses are passed through unmodified (the `webSocket` property cannot survive `new Response(...)` reconstruction).
+
+### Tests
+
+```
+tests/worker/
+  helpers.ts          – MockStorage, MockDOState, FakeWebSocket, FakeWebSocketPair, makeRequest
+  room.test.ts        – 77 tests: HTTP endpoints, WS connection/welcome, state_update (plain +
+                        encrypted), presence, client_left, size limits, malformed messages
+  index.test.ts       – 22 tests: routing, security headers, rate limiting
+  rateLimiter.test.ts – 6 tests: window, limit, persistence
+tests/frontend/
+  crypto.test.ts      – 16 tests: hashPassword, deriveEncryptionKey, encryptState/decryptState
+  graphRps.test.ts    – 16 tests: TPS propagation
+  persistence.test.ts – 17 tests: export format, migrations, localStorage helpers
+```
+
+Run: `bun test tests/worker/` or `bun test tests/frontend/` (uses `bun:test`, no esbuild).
+
+`FakeWebSocketPair` captures the server-side socket via `lastServerSocket` so tests can inspect `ws.send.mock.calls`. `connect()` helper returns `{ serverWs, welcome }` after clearing send history.
+
 ## Important Notes
 
 - `deleteKeyCode={null}` on ReactFlow — deletion handled by `useKeyboardShortcuts`
@@ -229,5 +426,5 @@ const MIGRATIONS: Record<number, (data: any) => any> = {
 - **Never use NodeToolbar** — portal causes deselection before onClick fires; use `position:absolute` div with `onMouseDown={stopPropagation}`
 - NodePanel is shown as a fixed `position:absolute` overlay in Canvas (not inside ReactFlow's node tree)
 - Right-click drag selection: crosshair cursor injected via `<style>` tag (not inline style — ReactFlow's `.react-flow__pane` has explicit cursor that overrides inherited styles)
-- Scaffold manually if `npm create vite` fails (`.claude` directory causes existing-dir error)
+- Scaffold manually if `bun create vite` fails (`.claude` directory causes existing-dir error)
 - `react-icons` is also installed (used for `SiCloudflare`, `MdHub`, etc.) alongside `lucide-react`
