@@ -58,6 +58,8 @@ interface FlowState {
   loadFromStorage: () => void;
   clearCanvas: () => void;
   importFromJson: (file: File) => Promise<void>;
+  /** Silently saves the current canvas as a room snapshot (no toast, no currentFile change). */
+  saveRoomSnapshot: (roomId: string, name: string) => void;
 }
 
 // ── Startup: try legacy key, then last-saved file, otherwise empty canvas ────
@@ -312,6 +314,12 @@ export const useFlowStore = create<FlowState>((set, get) => ({
   clearCanvas: () => {
     get().saveSnapshot();
     set({ nodes: [], edges: [] });
+  },
+
+  saveRoomSnapshot: (roomId: string, name: string) => {
+    const { nodes, edges } = get();
+    upsertFile({ id: `room-${roomId}`, name, updatedAt: Date.now(), nodes, edges, roomId });
+    set({ files: getAllFiles() });
   },
 
   importFromJson: async (file: File) => {

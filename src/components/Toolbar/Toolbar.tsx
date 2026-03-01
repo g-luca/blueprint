@@ -3,6 +3,7 @@ import { useFlowStore } from '../../store/useFlowStore';
 import { useThemeStore } from '../../store/useThemeStore';
 import { useExport } from '../../hooks/useExport';
 import { ApiReferenceModal } from '../ApiReferenceModal';
+import { ShareButton } from '../Collab/ShareButton';
 import type { ThemeName } from '../../themes';
 import type { SavedFile } from '../../utils/persistence';
 
@@ -272,8 +273,20 @@ function FileBrowser({ files, currentFileId, onOpen, onDelete, onClose }: {
               }}
             >
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {f.name}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {f.name}
+                  </span>
+                  {f.roomId && (
+                    <span style={{
+                      fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                      padding: '1px 5px', borderRadius: 4,
+                      background: 'rgba(96,165,250,0.18)', color: '#60a5fa',
+                      flexShrink: 0,
+                    }}>
+                      ROOM
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: 11, opacity: 0.55, marginTop: 1 }}>{formatDate(f.updatedAt)}</div>
               </div>
@@ -391,7 +404,7 @@ export function Toolbar() {
 
   const recentSubmenu: MenuItem[] = files.length > 0
     ? files.map((f) => ({
-        label: f.name,
+        label: f.roomId ? `⊚ ${f.name}` : f.name,
         meta: formatDate(f.updatedAt),
         action: () => loadFile(f.id),
       }))
@@ -464,6 +477,11 @@ export function Toolbar() {
             {currentFileName}
           </span>
         )}
+
+        {/* Share button — right-aligned */}
+        <div style={{ marginLeft: 'auto' }}>
+          <ShareButton />
+        </div>
       </header>
 
       {/* Name prompt modal */}

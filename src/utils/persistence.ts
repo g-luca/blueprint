@@ -71,6 +71,8 @@ export interface SavedFile {
   updatedAt: number;
   nodes: AppNode[];
   edges: AppEdge[];
+  /** Present when this file is a live room snapshot. */
+  roomId?: string;
 }
 
 // ─── Legacy (startup only) ────────────────────────────────────────────────────

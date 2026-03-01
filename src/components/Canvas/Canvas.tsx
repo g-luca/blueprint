@@ -21,6 +21,8 @@ import { NodePanel, LinePanel } from '../../nodes/NodePanel';
 import { EndpointPanel } from '../../nodes/EndpointPanel';
 import { ApiSpecificationPanel } from '../../nodes/ApiSpecificationPanel';
 import { ApiServicePanel } from '../../nodes/ApiServicePanel';
+import { useCollab } from '../../context/CollabContext';
+import { OtherCursors } from '../Collab/OtherCursors';
 import type { FlowEdgeData } from '../../types/edges';
 import type { BaseNodeData } from '../../types/nodes';
 
@@ -95,6 +97,7 @@ export function Canvas() {
   const theme = useThemeStore((s) => s.theme);
   const gridColors = GRID_COLORS[theme];
   const { screenToFlowPosition, getIntersectingNodes, getNodes } = useReactFlow();
+  const { sendPresence, isInRoom } = useCollab();
   useKeyboardShortcuts();
 
   // Cmd held → disable snap-to-grid for free positioning
@@ -163,6 +166,20 @@ export function Canvas() {
     if (dragStart.current !== null || selBox !== null) e.preventDefault();
   }, [selBox]);
 
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isInRoom) return;
+      const flowPos = screenToFlowPosition({ x: e.clientX, y: e.clientY });
+      sendPresence(flowPos);
+    },
+    [isInRoom, sendPresence, screenToFlowPosition],
+  );
+
+  const onPointerLeave = useCallback(() => {
+    if (!isInRoom) return;
+    sendPresence(null);
+  }, [isInRoom, sendPresence]);
+
   return (
     <div
       style={{ flex: 1, height: '100%', position: 'relative' }}
@@ -172,6 +189,8 @@ export function Canvas() {
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onContextMenu={onContextMenu}
+      onPointerMove={onPointerMove}
+      onPointerLeave={onPointerLeave}
     >
       {/* Right-click drag selection rectangle */}
       {selBox && selBox.w > 4 && selBox.h > 4 && (
@@ -213,6 +232,7 @@ export function Canvas() {
         </>}
         <SelectedNodePanel />
         <SelectedEdgePanel />
+        {isInRoom && <OtherCursors />}
         <Controls showInteractive={false} />
         <MiniMap
           nodeColor="var(--color-minimap-node)"
