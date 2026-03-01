@@ -22,7 +22,7 @@ const RECONNECT_MAX_MS  = 30_000;
  * Authorization headers are not supported during the upgrade handshake.
  */
 function buildCollabUrl(roomId: string, passwordHash?: string, useWs = false): string {
-  const endpoint = useWs ? COLLAB_ENDPOINT!.replace(/^http/, 'ws') : COLLAB_ENDPOINT!;
+  const endpoint = useWs ? COLLAB_ENDPOINT.replace(/^http/, 'ws') : COLLAB_ENDPOINT;
   const base = `${endpoint}/collab/${roomId}`;
   return passwordHash ? `${base}?pwd=${encodeURIComponent(passwordHash)}` : base;
 }
